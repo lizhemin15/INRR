@@ -107,6 +107,9 @@ class basic_task(object):
             model = demo.fc(para=para,reg=self.reg_list,img=self.pic,std_b=std_b)
         elif model_name == 'fourier' or model_name == 'garbor':
             model = demo.mfn(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,type_name=model_name)
+            # TODO 4. 加入FK(Full Kernel)模型
+        elif model_name == 'fk':
+            model = demo.fk(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         self.model = model
     
     def plot(self,epoch):

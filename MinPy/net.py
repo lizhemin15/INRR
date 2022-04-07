@@ -377,3 +377,69 @@ class mfn(inr):
             return model.cuda(cuda_num)
         else:
             return model
+
+# TODO 2. 写入FK模型
+class fk(basic_net):
+    def __init__(self,para,img,lr=1e-3,input_mode='masked',mask_in=None,opt_type='Adam'):
+        self.type = 'fk_net'
+        self.img = img
+        if input_mode == 'random':
+            self.input = t.rand(img.shape)*1e-1
+        elif input_mode == 'masked':
+            self.input = img*mask_in
+        elif input_mode in ['knn','nnm','softimpute','simple','itesvd','mc','ii']:
+            self.input = self.init_completion(img,mask_in,input_mode)
+        else:
+            raise('Wrong mode')
+            
+        self.input = t.unsqueeze(self.input,dim=0)
+        self.input = t.unsqueeze(self.input,dim=0)
+        if cuda_if:
+            self.input = self.input.cuda(cuda_num)
+        self.net = self.init_para()
+        self.data = self.init_data()
+        self.opt = self.init_opt(lr=lr,opt_type=opt_type)
+    
+    def init_para(self):
+        if cuda_if:
+            model = fk_net(self.input).cuda(cuda_num)
+        else:
+            model = fk_net(self.input)
+        return model
+
+    def init_data(self):
+        # Initial data
+        #print(self.input.shape)
+        pre_img = self.net(self.input)
+        pre_img = t.squeeze(pre_img,dim=0)
+        pre_img = t.squeeze(pre_img,dim=0)
+        #print(pre_img.shape)
+        return pre_img
+    
+    def init_completion(self,img,mask_in,init_mode):
+        # Both the input img and mask_in are the tensor on cuda
+        # We will translate them into numpy
+        from fancyimpute import KNN
+        X_incomplete = img.cpu().detach().numpy().copy()
+        mask_in = mask_in.cpu().detach().numpy()
+        X_incomplete[(1-mask_in).astype(bool)] = None
+        if init_mode == 'knn':
+            X_filled = KNN(k=3,verbose=False).fit_transform(X_incomplete)
+        elif method_name == 'nnm':
+            X_filled = NuclearNormMinimization().fit_transform(X_incomplete)
+        elif method_name == 'softimpute':
+            X_filled = SoftImpute(verbose=False).fit_transform(X_incomplete)
+        elif method_name == 'simple':
+            X_filled = SimpleFill().fit_transform(X_incomplete)
+        elif method_name == 'itesvd':
+            X_filled = IterativeSVD(20,verbose=False).fit_transform(X_incomplete)
+        elif method_name == 'mc':
+            X_filled = MatrixFactorization(verbose=False).fit_transform(X_incomplete)
+        elif method_name == 'ii':
+            X_filled = IterativeImputer(verbose=False).fit_transform(X_incomplete)
+        else:
+            raise('Wrong method_name.')
+        if cuda_if:
+            return t.tensor(X_filled).cuda(cuda_num)
+        else:
+            return t.tensor(X_filled)
