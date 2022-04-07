@@ -1,5 +1,6 @@
 import os
 import sys
+from unittest.mock import patch
 import torch as t
 import numpy as np
 import pickle as pkl
@@ -18,10 +19,11 @@ import reg,demo
 class basic_task(object):
     def __init__(self,m=240,n=240,data_path=None,mask_mode='random',random_rate=0.5,
                  mask_path=None,given_mask=None,para=[2,2000,1000,500,200,1],input_mode='masked',
-                std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',opt_type='Adam',verbose=False,std_w=1e-3):
+                std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',opt_type='Adam',
+                verbose=False,std_w=1e-3,act='relu',patch_num=3):
         self.m,self.n = m,n
         self.init_data(m=m,n=n,data_path=data_path)
-        self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,given_mask=given_mask)
+        self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,given_mask=given_mask,patch_num=patch_num)
         if verbose:
             if data_path != None:
                 plot.gray_im(self.pic.cpu()*self.mask_in.cpu())
@@ -31,7 +33,7 @@ class basic_task(object):
         self.init_reg(m,n)
         self.init_model(model_name=model_name,para=para,
                         input_mode=input_mode,std_b=std_b,
-                        opt_type=opt_type,std_w=std_w)
+                        opt_type=opt_type,std_w=std_w,act=act)
         self.reg_mode = reg_mode
         self.model_name = model_name
     
@@ -42,7 +44,7 @@ class basic_task(object):
             pic = dataloader.get_data(height=m,width=n,pic_name=data_path)
         self.pic = pic
     
-    def init_mask(self,mask_mode='random',random_rate=0.5,mask_path=None,given_mask=None):
+    def init_mask(self,mask_mode='random',random_rate=0.5,mask_path=None,given_mask=None,patch_num=3):
         if mask_mode == 'random':
             transformer = dataloader.data_transform(z=self.pic,return_type='tensor')
             mask_in = transformer.get_drop_mask(rate=random_rate) #rate为丢失率
@@ -59,12 +61,24 @@ class basic_task(object):
         elif mask_mode == 'fixed':
             mask_in = dataloader.get_data(height=self.m,width=self.n,pic_name=mask_path)
             mask_in[mask_in<1] = 0
+        elif mask_mode == 'patch_num':
+            if cuda_if:
+                mask_in = t.ones((self.m,self.n)).cuda(cuda_num)
+            else:
+                mask_in = t.ones((self.m,self.n))
+            pixel_m = self.m//patch_num
+            pixel_n = self.n//patch_num
+            for i in range(self.m):
+                for j in range(self.n):
+                    if (i%pixel_m-pixel_m/2.0)*(j%pixel_n-pixel_n/2.0)<0:
+                        mask_in[i,j] = 0
         elif mask_mode == 'given':
             mask_in = given_mask
         if cuda_if:
             self.mask_in = mask_in.cuda(cuda_num)
         else:
             self.mask_in = mask_in
+        plot.gray_im(self.mask_in.cpu())
         
     def init_pro(self,pro_mode='mask'):
         if pro_mode == 'svd':
@@ -82,11 +96,11 @@ class basic_task(object):
         reg_cnn = reg.hc_reg(name='nn')
         self.reg_list = [reg_hc,reg_row,reg_col,reg_cnn]
     
-    def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],input_mode='masked',std_b=1e-1,opt_type='Adam',std_w=1e-3):
+    def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],input_mode='masked',std_b=1e-1,opt_type='Adam',std_w=1e-3,act='relu'):
         if model_name == 'dip':
             model = demo.dip(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         elif model_name == 'fp':
-            model = demo.fp(para=para,reg=self.reg_list,img=self.pic,std_b=std_b)
+            model = demo.fp(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,act=act,std_w=std_w)
         elif model_name == 'dmf':
             model = demo.basic_dmf(para,self.reg_list,std_w)
         elif model_name == 'fc':
@@ -148,7 +162,7 @@ class shuffle_task(basic_task):
     def __init__(self,m=240,n=240,data_path=None,mask_mode='random',random_rate=0.5,
                  mask_path=None,given_mask=None,para=[2,2000,1000,500,200,1],input_mode='masked',
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',
-                 opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3):
+                 opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,act='relu'):
         self.m,self.n = m,n
         self.init_data(m=m,n=n,data_path=data_path,shuffle_mode=shuffle_mode)
         self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,given_mask=given_mask)
@@ -161,7 +175,7 @@ class shuffle_task(basic_task):
         self.init_reg(m,n)
         self.init_model(model_name=model_name,para=para,
                         input_mode=input_mode,std_b=std_b,
-                        opt_type=opt_type,std_w=std_w)
+                        opt_type=opt_type,std_w=std_w,act=act)
         self.reg_mode = reg_mode
         self.model_name = model_name
         

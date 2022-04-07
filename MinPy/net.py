@@ -283,10 +283,10 @@ class nl_dmf(dmf):
 
 
 class inr(basic_net):
-    def __init__(self,params,img,lr=1e-3,std_b=1e-3):
+    def __init__(self,params,img,lr=1e-3,std_b=1e-3,act='relu'):
         self.type = 'inr'
         params = [2,2000,1000,500,200,1]
-        self.net = self.init_para(params,std_b=std_b)
+        self.net = self.init_para(params,std_b=std_b,act=act)
         self.img = img
         self.img2cor()
         #print(self.input.shape)
@@ -310,11 +310,11 @@ class inr(basic_net):
         # 给定形状为mn*1的网络输出，返回m*n的灰度图像
         return img.reshape(self.m,self.n)
     
-    def init_para(self,params,std_b):
+    def init_para(self,params,std_b,act,std_w):
         if cuda_if:
-            model = bias_net(params,std_b).cuda(cuda_num)
+            model = bias_net(params,std_b,act=act,std_w=std_w).cuda(cuda_num)
         else:
-            model = bias_net(params,std_b)
+            model = bias_net(params,std_b,act=act,std_w=std_w)
         return model
     
     def init_data(self):
@@ -327,10 +327,10 @@ class inr(basic_net):
         self.data = self.init_data()
 
 class fp(inr):
-    def __init__(self,params,img,lr=1e-3,std_b=1e-3):
+    def __init__(self,params,img,lr=1e-3,std_b=1e-3,act='relu',std_w=1e-3):
         self.type = 'fp'
         params = [2,2000,1000,500,200,1]
-        self.net = self.init_para(params,std_b=std_b)
+        self.net = self.init_para(params,std_b=std_b,act=act,std_w=std_w)
         self.img = img
         self.img2cor()
         #print(self.input.shape)
@@ -339,13 +339,13 @@ class fp(inr):
 
 class fc(inr):
     # fully_connected such as for AutoEncoderDecoder
-    def __init__(self,params,img,lr=1e-3,std_b=1e-3):
+    def __init__(self,params,img,lr=1e-3,std_b=1e-3,act='relu'):
         self.type = 'fc'
         params = [2,2000,1000,500,200,1]
         self.m,self.n = img.shape[0],img.shape[1]
         params.insert(0,self.m*self.n//100)
         params.append(self.m*self.n)
-        self.net = self.init_para(params,std_b=std_b)
+        self.net = self.init_para(params,std_b=std_b,act=act)
         self.img = img
         self.input = t.rand(1,self.m*self.n//100)*1e-1
         if cuda_if:
@@ -355,7 +355,6 @@ class fc(inr):
         self.opt = self.init_opt(lr)
 
 class mfn(inr):
-    # TODO 1. 完成模型调用
     def __init__(self,params,img,lr=1e-3,std_b=1e-3,type_name='fourier'):
         self.type = type_name
         self.net = self.init_para(params,std_b=std_b)
