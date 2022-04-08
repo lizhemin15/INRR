@@ -62,6 +62,8 @@ class bias_net(t.nn.Module):
             self.act = F.log_softmax
         elif act == 'softshrink':
             self.act = F.softshrink
+        elif act == 'sin':
+            self.act = t.sin
         else:
             print('Wrong act name:',act)
         for i in range(len(para)-1):

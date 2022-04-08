@@ -378,7 +378,6 @@ class mfn(inr):
         else:
             return model
 
-# TODO 2. 写入FK模型
 class fk(basic_net):
     def __init__(self,para,img,lr=1e-3,input_mode='masked',mask_in=None,opt_type='Adam'):
         self.type = 'fk_net'

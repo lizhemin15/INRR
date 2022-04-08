@@ -158,8 +158,7 @@ class mfn(basic_demo):
         self.loss_dict={'loss_fid':[],'loss_all':[],'nmae_test':[]}
         for reg_now in self.reg:
             self.loss_dict['loss_'+reg_now.type] = []
-
-# TODO 3. 定义FK模型
+            
 class fk(basic_demo):
     def __init__(self,para=[6,6,6],img=None,reg=None,net_lr=1e-3,input_mode='masked',mask_in=None,opt_type='Adam'):
         #self.net = net.dmf(para)
