@@ -96,7 +96,7 @@ class basic_task(object):
         reg_cnn = reg.hc_reg(name='nn')
         self.reg_list = [reg_hc,reg_row,reg_col,reg_cnn]
     
-    def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],input_mode='masked',std_b=1e-1,opt_type='Adam',std_w=1e-3,act='relu'):
+    def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],input_mode='masked',std_b=1e-1,opt_type='Adam',std_w=1e-3,act='relu',net_list=['dmf']):
         if model_name == 'dip':
             model = demo.dip(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         elif model_name == 'fp':
@@ -109,6 +109,9 @@ class basic_task(object):
             model = demo.mfn(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,type_name=model_name)
         elif model_name == 'fk':
             model = demo.fk(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
+        elif model_name == 'multi_net':
+            model = demo.multi_net(net_list=net_list,reg=self.reg_list,img=self.pic)
+            # TODO 2. multi_net
         self.model = model
     
     def plot(self,epoch):
@@ -164,10 +167,10 @@ class shuffle_task(basic_task):
     def __init__(self,m=240,n=240,data_path=None,mask_mode='random',random_rate=0.5,
                  mask_path=None,given_mask=None,para=[2,2000,1000,500,200,1],input_mode='masked',
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',
-                 opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,act='relu'):
+                 opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,act='relu',patch_num=3,net_list=['dmf']):
         self.m,self.n = m,n
         self.init_data(m=m,n=n,data_path=data_path,shuffle_mode=shuffle_mode)
-        self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,given_mask=given_mask)
+        self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,given_mask=given_mask,patch_num=patch_num)
         if verbose:
             if data_path != None:
                 plot.gray_im(self.pic.cpu()*self.mask_in.cpu())
@@ -177,7 +180,7 @@ class shuffle_task(basic_task):
         self.init_reg(m,n)
         self.init_model(model_name=model_name,para=para,
                         input_mode=input_mode,std_b=std_b,
-                        opt_type=opt_type,std_w=std_w,act=act)
+                        opt_type=opt_type,std_w=std_w,act=act,net_list=net_list)
         self.reg_mode = reg_mode
         self.model_name = model_name
         
@@ -218,19 +221,29 @@ class shuffle_task(basic_task):
             if ite % print_epoch==0 and verbose == True:
                 pprint.progress_bar(ite,epoch,self.model.loss_dict) # 格式化输出训练的loss，打印出训练进度条
             if ite % imshow_epoch==0 and imshow == True:
-                model_data = self.model.net.data
+                if self.model_name == 'multi_net':
+                    model_data = self.model.net_list[0].data
+                else:
+                    model_data = self.model.net.data
                 model_data = self.data_transform.shuffle(M=model_data,shuffle_list=self.shuffle_list,mode='to')
                 matrix_data = model_data.cpu().detach().numpy()
                 if plot_mode == 'gray':
                     plot.gray_im(matrix_data) # 显示训练的图像，可设置参数保存图像
                 else:
                     plot.red_im(matrix_data) # 显示训练的图像，可设置参数保存图像
-                print('RMSE:',t.sqrt(t.mean((self.pic-self.model.net.data)**2)).detach().cpu().numpy())
-                print_NMAE = t.sum(t.abs(self.pic-self.model.net.data)*(1-self.mask_in))/(t.max(self.pic)-t.min(self.pic))/t.sum(1-self.mask_in)
+                if self.model_name == 'multi_net':
+                    print('RMSE:',t.sqrt(t.mean((self.pic-self.model.net_list[0].data)**2)).detach().cpu().numpy())
+                    print_NMAE = t.sum(t.abs(self.pic-self.model.net_list[0].data)*(1-self.mask_in))/(t.max(self.pic)-t.min(self.pic))/t.sum(1-self.mask_in)
+                else:
+                    print('RMSE:',t.sqrt(t.mean((self.pic-self.model.net.data)**2)).detach().cpu().numpy())
+                    print_NMAE = t.sum(t.abs(self.pic-self.model.net.data)*(1-self.mask_in))/(t.max(self.pic)-t.min(self.pic))/t.sum(1-self.mask_in)
                 print_NAME = print_NMAE.detach().cpu().numpy()
                 print('NMAE',print_NMAE)
             # 添加投影
-            self.pro_list.append(self.my_pro.projection(self.model.net.data.cpu().detach().numpy()))
+            if self.model_name == 'multi_net':
+                self.pro_list.append(self.my_pro.projection(self.model.net_list[0].data.cpu().detach().numpy()))
+            else:
+                self.pro_list.append(self.my_pro.projection(self.model.net.data.cpu().detach().numpy()))
             if stop_err != None:
                 if self.pro_list[-1][0]<stop_err:
                     break

@@ -1,3 +1,4 @@
+from atexit import register
 import os
 import sys
 current_dir = os.path.abspath(os.path.dirname(__file__))
@@ -167,3 +168,88 @@ class fk(basic_demo):
         self.loss_dict={'loss_fid':[],'loss_all':[],'nmae_test':[]}
         for reg_now in self.reg:
             self.loss_dict['loss_'+reg_now.type] = []
+
+class multi_net(basic_demo):
+    # TODO : 1. add the multi-net
+    def __init__(self,net_list=['dmf'],reg=None,para=[2,256,1],img=None):
+        self.net_list = []
+        for net_now in net_list:
+            if net_now == 'dmf':
+                self.net_list.append(net.dmf([img.shape[0],img.shape[0],img.shape[1],img.shape[1]]))
+            elif net_now == 'fp':
+                self.net_list.append(net.fp(para,img=img))
+            elif net_now == 'dip':
+                self.net_list.append(net.dip(para,img=img))
+            elif net_now == 'fc':
+                self.net_list.append(net.fc(para,img=img))
+            elif net_now == 'garbor':
+                self.net_list.append(net.mfn(params=para,img=img,type_name='garbor'))
+            elif net_now == 'fourier':
+                self.net_list.append(net.mfn(params=para,img=img,type_name='fourier'))
+            else:
+                raise('Wrong net type:',net_now)
+        self.reg = reg
+        self.loss_dict={'loss_fid':[],'loss_all':[],'nmae_test':[]}
+        for reg_now in self.reg:
+            self.loss_dict['loss_'+reg_now.type] = []
+
+    def get_loss(self,fid_name,pic,mask_in,eta,mu):
+        if fid_name == None:
+            loss_fid = 0
+            for net_now in self.net_list:
+                loss_fid += loss.mse(net_now.data,pic,mask_in)
+        elif fid_name == 'inv':
+            loss_fid = loss.mse_inv(self.net.data,pic,mask_in)
+        elif fid_name == 'idl':
+            loss_fid = loss.mse_id(self.net.data,pic,mask_in,direc='left')
+        elif fid_name == 'idr':
+            loss_fid = loss.mse_id(self.net.data,pic,mask_in,direc='right')
+        else:
+            raise('Wrong fid_name=',fid_name)
+        loss_reg_list = []
+        index_list = []
+        j = 0
+        for i,reg in enumerate(self.reg):
+            if eta[i] != None:
+                index_list.append(j)
+                j+=1
+                if reg.type == 'hc_reg':
+                    loss_reg_list.append(reg.loss(self.net_list[0].data))
+                    self.loss_dict['loss_'+reg.type].append(loss_reg_list[-1].detach().cpu().numpy())
+                else:
+                    loss_reg_list.append(reg.init_data(self.net_list[0].data))
+                    self.loss_dict['loss_'+reg.type].append(loss_reg_list[-1].detach().cpu().numpy())
+                    reg.opt.zero_grad()
+            else:
+                index_list.append(None)
+
+        loss_all = mu*loss_fid
+        for i in range(len(self.reg)):
+            if eta[i] != None:
+                loss_all = loss_all + eta[i]*loss_reg_list[index_list[i]]
+        with t.no_grad():
+            self.loss_dict['loss_fid'].append(loss_fid.detach().cpu().numpy())
+            self.loss_dict['loss_all'].append(loss_all.detach().cpu().numpy())
+            pic_know = pic*mask_in.cuda(cuda_num)
+            if fid_name == 'inv':
+                final_img = t.mm(t.mm(pic_know,self.net.data),pic_know)
+            elif fid_name == 'idl':
+                final_img = t.mm(pic_know,self.net.data)
+            elif fid_name == 'idr':
+                final_img = t.mm(self.net.data,pic_know)
+            else:
+                final_img = self.net_list[0].data
+            self.loss_dict['nmae_test'].append(loss.nmae(final_img,pic,mask_in).detach().cpu().numpy())
+        for net_now in self.net_list:
+            net_now.opt.zero_grad()
+        return loss_all
+
+    def train(self,pic,mu=1,eta=[0],mask_in=None,fid_name=None,train_reg_if=True):
+        loss_all = self.get_loss(fid_name,pic,mask_in,eta,mu)
+        loss_all.backward()
+        for net_now in self.net_list:
+            net_now.update()
+        if train_reg_if:
+            for reg in self.reg:
+                if reg.type != 'hc_reg':
+                    reg.update(net_now.data)

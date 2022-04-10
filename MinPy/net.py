@@ -213,7 +213,7 @@ class dip(basic_net):
         input_depth = 1
         pad = 'reflection'
         dtype = torch.cuda.FloatTensor
-        net = get_net(input_depth, para, pad,
+        net = get_net(input_depth, 'skip', pad,
                       skip_n33d=64, 
                       skip_n33u=64, 
                       skip_n11=4, 
