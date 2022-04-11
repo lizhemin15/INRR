@@ -20,7 +20,7 @@ class basic_task(object):
     def __init__(self,m=240,n=240,data_path=None,mask_mode='random',random_rate=0.5,
                  mask_path=None,given_mask=None,para=[2,2000,1000,500,200,1],input_mode='masked',
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',opt_type='Adam',
-                verbose=False,std_w=1e-3,act='relu',patch_num=3):
+                verbose=False,std_w=1e-3,act='relu',patch_num=3,n_layers=3,scale_factor=2):
         self.m,self.n = m,n
         self.init_data(m=m,n=n,data_path=data_path)
         self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,given_mask=given_mask,patch_num=patch_num)
@@ -33,7 +33,7 @@ class basic_task(object):
         self.init_reg(m,n)
         self.init_model(model_name=model_name,para=para,
                         input_mode=input_mode,std_b=std_b,
-                        opt_type=opt_type,std_w=std_w,act=act)
+                        opt_type=opt_type,std_w=std_w,act=act,n_layers=n_layers,scale_factor=scale_factor)
         self.reg_mode = reg_mode
         self.model_name = model_name
     
@@ -114,7 +114,7 @@ class basic_task(object):
         elif model_name == 'multi_net':
             model = demo.multi_net(net_list=net_list,reg=self.reg_list,img=self.pic)
         elif model_name == 'msn':
-            model = demo.msn(params=para,img=self.pic,reg=self.reg_list,n_layers=n_layers,scale_factor=scale_factor,mainnet_name='fourier'))
+            model = demo.msn(params=para,img=self.pic,reg=self.reg_list,n_layers=n_layers,scale_factor=scale_factor,mainnet_name='fourier')
         self.model = model
     
     def plot(self,epoch):
@@ -170,7 +170,8 @@ class shuffle_task(basic_task):
     def __init__(self,m=240,n=240,data_path=None,mask_mode='random',random_rate=0.5,
                  mask_path=None,given_mask=None,para=[2,2000,1000,500,200,1],input_mode='masked',
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',
-                 opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,act='relu',patch_num=3,net_list=['dmf']):
+                 opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,
+                 act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2):
         self.m,self.n = m,n
         self.init_data(m=m,n=n,data_path=data_path,shuffle_mode=shuffle_mode)
         self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,given_mask=given_mask,patch_num=patch_num)
@@ -183,7 +184,7 @@ class shuffle_task(basic_task):
         self.init_reg(m,n)
         self.init_model(model_name=model_name,para=para,
                         input_mode=input_mode,std_b=std_b,
-                        opt_type=opt_type,std_w=std_w,act=act,net_list=net_list)
+                        opt_type=opt_type,std_w=std_w,act=act,net_list=net_list,n_layers=n_layers,scale_factor=scale_factor)
         self.reg_mode = reg_mode
         self.model_name = model_name
         

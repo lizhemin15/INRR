@@ -24,25 +24,29 @@ class MSNBase(nn.Module):
     def __init__(self,n_layers=3,scale_factor=2,params=[256,256],samp_mode='nearest',mainnet_name='fourier'):
         super().__init__()
         size_list = []
-        size_list.append((params,params))
+        size_list.append((params[0],params[1]))
+        size_row,size_col = params[0],params[1]
         for _ in range(n_layers):
-            size_now = params//scale_factor
-            size_list.append((size_now,size_now))
-        size_list = size_list.reverse()
-        self.dis = nn.ModuleList([Dis_Layer(size) for size in size_list])
-        self.up = Up_Layer(scale_factor=scale_factor, mode=samp_mode, align_corners=None, recompute_scale_factor=None)
+            size_row = size_row//scale_factor
+            size_col = size_col//scale_factor
+            size_list.append((size_row,size_col))
+        size_list.reverse()
         if mainnet_name == 'fourier':
             self.mainnet = FourierNet(2,256,1)
         else:
             self.mainnet = GaborNet(2,256,1)
+        self.dis = nn.ModuleList([Dis_Layer(self.mainnet,size) for size in size_list])
+        self.up = Up_Layer(scale_factor=scale_factor, mode=samp_mode, align_corners=None)
+        self.weight = t.autograd.Variable(t.rand(len(self.dis))*1e-3,requires_grad=True)
 
     def forward(self):
         y = 0
         for i,dis in enumerate(self.dis):
+            w = self.weight[i]
             if i < len(self.dis)-1:
-                y = self.up(y+dis(self.mainnet))
+                y = self.up(y*(1-w)+dis()*w)
             else:
-                y = y+dis(self.mainnet)
+                y = y*(1-w)+dis()*w
         return y
 
 
@@ -53,11 +57,13 @@ class Dis_Layer(nn.Module):
     Input: Neural network
     Output: A discrete matrix size = size
     """
-    def __init__(self):
+    def __init__(self,net,size):
         """
         All the input are scaled to [-0.5,0.5]
         """
-        pass
+        super().__init__()
+        self.net = net
+        self.size = size
 
     def img2cor(self,size):
         # 给定m*n灰度图像，返回mn*2
@@ -75,9 +81,9 @@ class Dis_Layer(nn.Module):
         # 给定形状为mn*1的网络输出，返回m*n的灰度图像
         return img.reshape(self.m,self.n)
 
-    def forward(self,net,size=[100,100]):
-        self.img2cor(size)
-        out = self.cor2img(net(self.input))
+    def forward(self):
+        self.img2cor(self.size)
+        out = self.cor2img(self.net(self.input))
         return out
     
 
@@ -89,10 +95,15 @@ class Up_Layer(nn.Module):
     Input: A discrete matrix
     Output: A Up or Down sampled matrix
     """
-    def __init__(self,size=None, scale_factor=None, mode='nearest', align_corners=None, recompute_scale_factor=None):
-        self.upper = nn.Upsample(size=None, scale_factor=None, mode='nearest', align_corners=None, recompute_scale_factor=None)
+    def __init__(self,size=None, scale_factor=None, mode='nearest', align_corners=None):
+        super().__init__()
+        self.upper = nn.Upsample(size=size, scale_factor=scale_factor, mode=mode, align_corners=align_corners)
     
     def forward(self,x):
-        return self.upper(x)
+        x = t.unsqueeze(x,0)
+        x = t.unsqueeze(x,0)
+        x = self.upper(x)
+        x = t.squeeze(x,0)
+        return t.squeeze(x,0)
 
 
