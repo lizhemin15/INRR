@@ -260,7 +260,6 @@ class multi_net(basic_demo):
                     reg.update(net_now.data)
         
 class msn(basic_demo):
-    # TODO 4. demo级别 msn
     def __init__(self,params,img,reg=None,lr=1e-3,n_layers=3,scale_factor=2,mainnet_name='fourier'):
         #self.net = net.dmf(para)
         self.net = net.msn(params,img,lr=lr,n_layers=n_layers,scale_factor=scale_factor,mainnet_name=mainnet_name)
@@ -268,3 +267,6 @@ class msn(basic_demo):
         self.loss_dict={'loss_fid':[],'loss_all':[],'nmae_test':[]}
         for reg_now in self.reg:
             self.loss_dict['loss_'+reg_now.type] = []
+
+
+# TODO 4. demo级别BACON定义

@@ -447,7 +447,6 @@ class fk(basic_net):
 
 
 class msn(basic_net):
-    # TODO 3. 定义net级别的msn
     def __init__(self,params,img,lr=1e-3,n_layers=3,scale_factor=2,mainnet_name='fourier'):
         self.type = 'msn'
         self.net = self.init_para(params,n_layers=n_layers,scale_factor=scale_factor,mainnet_name=mainnet_name)
@@ -467,3 +466,37 @@ class msn(basic_net):
         # Initial data
         return self.net()
         
+# TODO 3. 使用BACON
+class bacon(inr):
+    def __init__(self,params,img,lr=1e-3,std_b=1e-3,type_name='fourier'):
+        self.type = type_name
+        self.net = self.init_para()
+        self.img = img
+        self.img2cor()
+        #print(self.input.shape)
+        self.data = self.init_data()
+        self.opt = self.init_opt(lr)
+
+    def init_para(self):
+        if self.type == 'mulbacon':
+            model = MultiscaleBACON(2, opt.hidden_features, out_size=out_features,
+                  hidden_layers=opt.hidden_layers,
+                  bias=True,
+                  frequency=(opt.res, opt.res),
+                  quantization_interval=2*np.pi,
+                  input_scales=input_scales,
+                  output_layers=output_layers,
+                  reuse_filters=False)
+        elif self.type == 'bacon':
+            model = BACON(2, opt.hidden_features, out_size=out_features,
+                  hidden_layers=opt.hidden_layers,
+                  bias=True,
+                  frequency=(opt.res, opt.res),
+                  quantization_interval=2*np.pi,
+                  input_scales=input_scales,
+                  output_layers=output_layers,
+                  reuse_filters=False)
+        if cuda_if:
+            return model.cuda(cuda_num)
+        else:
+            return model

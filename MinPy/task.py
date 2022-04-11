@@ -115,6 +115,7 @@ class basic_task(object):
             model = demo.multi_net(net_list=net_list,reg=self.reg_list,img=self.pic)
         elif model_name == 'msn':
             model = demo.msn(params=para,img=self.pic,reg=self.reg_list,n_layers=n_layers,scale_factor=scale_factor,mainnet_name='fourier')
+            # TODO 5. task级别BACON定义
         self.model = model
     
     def plot(self,epoch):
