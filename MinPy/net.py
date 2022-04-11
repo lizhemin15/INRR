@@ -442,3 +442,28 @@ class fk(basic_net):
             return t.tensor(X_filled).cuda(cuda_num)
         else:
             return t.tensor(X_filled)
+
+
+
+
+class msn(basic_net):
+    # TODO 3. 定义net级别的msn
+    def __init__(self,params,img,lr=1e-3,n_layers=3,scale_factor=2,mainnet_name='fourier'):
+        self.type = 'msn'
+        self.net = self.init_para(params,n_layers=n_layers,scale_factor=scale_factor,mainnet_name=mainnet_name)
+        self.img = img
+        #print(self.input.shape)
+        self.data = self.init_data()
+        self.opt = self.init_opt(lr)
+        
+    def init_para(self,params=[256,256],n_layers=3,scale_factor=2,mainnet_name='fourier'):
+        if cuda_if:
+            model = MSNBase(params=params,n_layers=n_layers,scale_factor=scale_factor,mainnet_name=mainnet_name).cuda(cuda_num)
+        else:
+            model = MSNBase(params=params,n_layers=n_layers,scale_factor=scale_factor,mainnet_name=mainnet_name)
+        return model
+    
+    def init_data(self):
+        # Initial data
+        return self.net()
+        

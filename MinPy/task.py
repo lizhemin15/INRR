@@ -96,7 +96,9 @@ class basic_task(object):
         reg_cnn = reg.hc_reg(name='nn')
         self.reg_list = [reg_hc,reg_row,reg_col,reg_cnn]
     
-    def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],input_mode='masked',std_b=1e-1,opt_type='Adam',std_w=1e-3,act='relu',net_list=['dmf']):
+    def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],
+                    input_mode='masked',std_b=1e-1,opt_type='Adam',
+                    std_w=1e-3,act='relu',net_list=['dmf'],n_layers=3,scale_factor=2):
         if model_name == 'dip':
             model = demo.dip(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         elif model_name == 'fp':
@@ -111,7 +113,8 @@ class basic_task(object):
             model = demo.fk(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         elif model_name == 'multi_net':
             model = demo.multi_net(net_list=net_list,reg=self.reg_list,img=self.pic)
-            # TODO 2. multi_net
+        elif model_name == 'msn':
+            model = demo.msn(params=para,img=self.pic,reg=self.reg_list,n_layers=n_layers,scale_factor=scale_factor,mainnet_name='fourier'))
         self.model = model
     
     def plot(self,epoch):

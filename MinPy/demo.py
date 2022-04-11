@@ -170,7 +170,6 @@ class fk(basic_demo):
             self.loss_dict['loss_'+reg_now.type] = []
 
 class multi_net(basic_demo):
-    # TODO : 1. add the multi-net
     def __init__(self,net_list=['dmf'],reg=None,para=[2,256,1],img=None):
         self.net_list = []
         for net_now in net_list:
@@ -260,3 +259,12 @@ class multi_net(basic_demo):
                 if reg.type != 'hc_reg':
                     reg.update(net_now.data)
         
+class msn(basic_demo):
+    # TODO 4. demo级别 msn
+    def __init__(self,params,img,reg=None,lr=1e-3,n_layers=3,scale_factor=2,mainnet_name='fourier'):
+        #self.net = net.dmf(para)
+        self.net = net.msn(params,img,lr=lr,n_layers=n_layers,scale_factor=scale_factor,mainnet_name=mainnet_name)
+        self.reg = reg
+        self.loss_dict={'loss_fid':[],'loss_all':[],'nmae_test':[]}
+        for reg_now in self.reg:
+            self.loss_dict['loss_'+reg_now.type] = []
