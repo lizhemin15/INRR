@@ -188,6 +188,7 @@ class multi_net(basic_demo):
                 self.net_list.append(net.mfn(params=para,img=img,type_name='fourier'))
             else:
                 raise('Wrong net type:',net_now)
+        self.net = net.fp(para,img=img)
         self.reg = reg
         self.loss_dict={'loss_fid':[],'loss_all':[],'nmae_test':[]}
         for reg_now in self.reg:
@@ -238,7 +239,7 @@ class multi_net(basic_demo):
             elif fid_name == 'idr':
                 final_img = t.mm(self.net.data,pic_know)
             else:
-                final_img = self.net_list[0].data
+                final_img = self.net.data
             self.loss_dict['nmae_test'].append(loss.nmae(final_img,pic,mask_in).detach().cpu().numpy())
         for net_now in self.net_list:
             net_now.opt.zero_grad()
@@ -247,9 +248,15 @@ class multi_net(basic_demo):
     def train(self,pic,mu=1,eta=[0],mask_in=None,fid_name=None,train_reg_if=True):
         loss_all = self.get_loss(fid_name,pic,mask_in,eta,mu)
         loss_all.backward()
-        for net_now in self.net_list:
+        self.net.data = 0
+        for count,net_now in enumerate(self.net_list):
             net_now.update()
+            if count == 0:
+                self.net.data += net_now.data*mask_in
+            else:
+                self.net.data += net_now.data*(1-mask_in)
         if train_reg_if:
             for reg in self.reg:
                 if reg.type != 'hc_reg':
                     reg.update(net_now.data)
+        

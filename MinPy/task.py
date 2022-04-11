@@ -221,29 +221,19 @@ class shuffle_task(basic_task):
             if ite % print_epoch==0 and verbose == True:
                 pprint.progress_bar(ite,epoch,self.model.loss_dict) # 格式化输出训练的loss，打印出训练进度条
             if ite % imshow_epoch==0 and imshow == True:
-                if self.model_name == 'multi_net':
-                    model_data = self.model.net_list[0].data
-                else:
-                    model_data = self.model.net.data
+                model_data = self.model.net.data
                 model_data = self.data_transform.shuffle(M=model_data,shuffle_list=self.shuffle_list,mode='to')
                 matrix_data = model_data.cpu().detach().numpy()
                 if plot_mode == 'gray':
                     plot.gray_im(matrix_data) # 显示训练的图像，可设置参数保存图像
                 else:
                     plot.red_im(matrix_data) # 显示训练的图像，可设置参数保存图像
-                if self.model_name == 'multi_net':
-                    print('RMSE:',t.sqrt(t.mean((self.pic-self.model.net_list[0].data)**2)).detach().cpu().numpy())
-                    print_NMAE = t.sum(t.abs(self.pic-self.model.net_list[0].data)*(1-self.mask_in))/(t.max(self.pic)-t.min(self.pic))/t.sum(1-self.mask_in)
-                else:
-                    print('RMSE:',t.sqrt(t.mean((self.pic-self.model.net.data)**2)).detach().cpu().numpy())
-                    print_NMAE = t.sum(t.abs(self.pic-self.model.net.data)*(1-self.mask_in))/(t.max(self.pic)-t.min(self.pic))/t.sum(1-self.mask_in)
+                print('RMSE:',t.sqrt(t.mean((self.pic-self.model.net.data)**2)).detach().cpu().numpy())
+                print_NMAE = t.sum(t.abs(self.pic-self.model.net.data)*(1-self.mask_in))/(t.max(self.pic)-t.min(self.pic))/t.sum(1-self.mask_in)
                 print_NAME = print_NMAE.detach().cpu().numpy()
                 print('NMAE',print_NMAE)
             # 添加投影
-            if self.model_name == 'multi_net':
-                self.pro_list.append(self.my_pro.projection(self.model.net_list[0].data.cpu().detach().numpy()))
-            else:
-                self.pro_list.append(self.my_pro.projection(self.model.net.data.cpu().detach().numpy()))
+            self.pro_list.append(self.my_pro.projection(self.model.net.data.cpu().detach().numpy()))
             if stop_err != None:
                 if self.pro_list[-1][0]<stop_err:
                     break
