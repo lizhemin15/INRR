@@ -507,3 +507,9 @@ class bacon(inr):
             return model.cuda(cuda_num)
         else:
             return model
+
+
+
+
+# TODO 1.蒸馏网络
+# TODO 2.简化代码
