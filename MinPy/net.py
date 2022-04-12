@@ -320,6 +320,8 @@ class inr(basic_net):
     def init_data(self):
         # Initial data
         pre_img = self.net(self.input)
+        if self.type == 'mulbacon':
+            self.multi_outputs = self.net.multi_outputs
         return self.cor2img(pre_img)
 
     def update(self):
@@ -470,18 +472,18 @@ class msn(basic_net):
 class bacon(inr):
     def __init__(self,params,img,lr=1e-3,type_name='bacon'):
         self.type = type_name
-        self.net = self.init_para(params)
         self.img = img
+        self.net = self.init_para(params)
         self.img2cor()
         #print(self.input.shape)
         self.data = self.init_data()
         self.opt = self.init_opt(lr)
 
     def init_para(self,params):
-        hidden_features = 32
+        hidden_features = params[0]
         out_features = 1
-        hidden_layers = len(params)-2
-        res = self.img.shape[0]
+        hidden_layers = params[2]
+        res = params[1]
         input_scales = [1/8, 1/8, 1/4, 1/4, 1/4]
         output_layers = [1, 2, 4]
         if self.type == 'mulbacon':

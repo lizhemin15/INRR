@@ -116,7 +116,7 @@ class basic_task(object):
         elif model_name == 'msn':
             model = demo.msn(params=para,img=self.pic,reg=self.reg_list,n_layers=n_layers,scale_factor=scale_factor,mainnet_name='fourier')
         elif model_name == 'bacon' or 'mulbacon':
-            model = demo.bacon(params=para,img=self.pic,type_name=model_name)
+            model = demo.bacon(params=para,img=self.pic,reg=self.reg_list,type_name=model_name)
             # TODO 5. task级别BACON定义
         self.model = model
     
@@ -231,10 +231,19 @@ class shuffle_task(basic_task):
                 model_data = self.model.net.data
                 model_data = self.data_transform.shuffle(M=model_data,shuffle_list=self.shuffle_list,mode='to')
                 matrix_data = model_data.cpu().detach().numpy()
-                if plot_mode == 'gray':
-                    plot.gray_im(matrix_data) # 显示训练的图像，可设置参数保存图像
+                if self.model_name != 'mulbacon':
+                    if plot_mode == 'gray':
+                        plot.gray_im(matrix_data) # 显示训练的图像，可设置参数保存图像
+                    else:
+                        plot.red_im(matrix_data) # 显示训练的图像，可设置参数保存图像
                 else:
-                    plot.red_im(matrix_data) # 显示训练的图像，可设置参数保存图像
+                    for model_data in self.model.net.multi_outputs:
+                        model_data = self.data_transform.shuffle(M=model_data,shuffle_list=self.shuffle_list,mode='to')
+                        matrix_data = model_data.cpu().detach().numpy()
+                        if plot_mode == 'gray':
+                            plot.gray_im(matrix_data) # 显示训练的图像，可设置参数保存图像
+                        else:
+                            plot.red_im(matrix_data) # 显示训练的图像，可设置参数保存图像
                 print('RMSE:',t.sqrt(t.mean((self.pic-self.model.net.data)**2)).detach().cpu().numpy())
                 print_NMAE = t.sum(t.abs(self.pic-self.model.net.data)*(1-self.mask_in))/(t.max(self.pic)-t.min(self.pic))/t.sum(1-self.mask_in)
                 print_NAME = print_NMAE.detach().cpu().numpy()

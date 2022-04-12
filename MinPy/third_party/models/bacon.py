@@ -116,12 +116,7 @@ class MFNBase(nn.Module):
         self.linear.apply(mfn_weights_init)
         self.output_linear.apply(mfn_weights_init)
 
-    def forward(self, model_input):
-
-        input_dict = {key: input.clone().detach().requires_grad_(True)
-                      for key, input in model_input.items()}
-        coords = input_dict['coords']
-
+    def forward(self, coords):
         out = self.filters[0](coords)
         for i in range(1, len(self.filters)):
             out = self.filters[i](coords) * self.linear[i - 1](out)
@@ -130,7 +125,7 @@ class MFNBase(nn.Module):
         if self.output_act:
             out = torch.sin(out)
 
-        return {'model_in': input_dict, 'model_out': {'output': out}}
+        return out
 
 
 class FourierLayer(nn.Module):
@@ -199,15 +194,7 @@ class BACON(MFNBase):
 
         print(self)
 
-    def forward_mfn(self, input_dict):
-        if 'coords' in input_dict:
-            coords = input_dict['coords']
-        elif 'ray_samples' in input_dict:
-            if self.in_size > 3:
-                coords = torch.cat((input_dict['ray_samples'], input_dict['ray_orientations']), dim=-1)
-            else:
-                coords = input_dict['ray_samples']
-
+    def forward_mfn(self, coords):
         if self.reuse_filters:
             filter_outputs = 3 * [self.filters[2](coords), ] + \
                              2 * [self.filters[4](coords), ] + \
@@ -230,14 +217,7 @@ class BACON(MFNBase):
         return out
 
     def forward(self, model_input, mode=None, integral_dim=None):
-
-        out = {'output': self.forward_mfn(model_input)}
-
-        if self.is_sdf:
-            return {'model_in': model_input['coords'],
-                    'model_out': out['output']}
-
-        return {'model_in': model_input, 'model_out': out}
+        return self.forward_mfn(model_input)
 
 
 class MultiscaleBACON(MFNBase):
@@ -327,20 +307,10 @@ class MultiscaleBACON(MFNBase):
                     outputs.append(self.output_linear[i](out))
                 return outputs
 
-        return outputs
+        return outputs[-1]
 
-    def forward(self, model_input, specified_layers=None, get_feature=False,
+    def forward(self, coords, specified_layers=None, get_feature=False,
                 continue_layer=0, continue_feature=None):
-
-        if self.is_sdf:
-            model_input = {key: input.clone().detach().requires_grad_(True)
-                           for key, input in model_input.items()}
-
-        if 'coords' in model_input:
-            coords = model_input['coords']
-        elif 'ray_samples' in model_input:
-            coords = model_input['ray_samples']
-
         outputs = []
         if self.reuse_filters:
 
@@ -380,12 +350,8 @@ class MultiscaleBACON(MFNBase):
                     outputs.append(self.output_linear[i](out))
                     if self.stop_after is not None and len(outputs) > self.stop_after:
                         break
-
-        if self.is_sdf:  # convert dtype
-            return {'model_in': model_input['coords'],
-                    'model_out': outputs}  # outputs is a list of tensors
-
-        return {'model_in': model_input, 'model_out': {'output': outputs}}
+        self.multi_outputs = outputs
+        return outputs[-1]
 
 
 class MultiscaleCoordinateNet(nn.Module):
