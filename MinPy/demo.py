@@ -270,3 +270,11 @@ class msn(basic_demo):
 
 
 # TODO 4. demo级别BACON定义
+class bacon(basic_demo):
+    def __init__(self,params,img,reg=None,lr=1e-3,type_name='bacon'):
+        self.net = net.bacon(params,img,lr=lr,type_name=type_name)
+        self.reg = reg
+        self.loss_dict={'loss_fid':[],'loss_all':[],'nmae_test':[]}
+        for reg_now in self.reg:
+            self.loss_dict['loss_'+reg_now.type] = []
+
