@@ -269,7 +269,6 @@ class msn(basic_demo):
             self.loss_dict['loss_'+reg_now.type] = []
 
 
-# TODO 4. demo级别BACON定义
 class bacon(basic_demo):
     def __init__(self,params,img,reg=None,lr=1e-3,type_name='bacon'):
         self.net = net.bacon(params,img,lr=lr,type_name=type_name)

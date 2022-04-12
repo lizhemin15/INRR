@@ -117,7 +117,6 @@ class basic_task(object):
             model = demo.msn(params=para,img=self.pic,reg=self.reg_list,n_layers=n_layers,scale_factor=scale_factor,mainnet_name='fourier')
         elif model_name == 'bacon' or 'mulbacon':
             model = demo.bacon(params=para,img=self.pic,reg=self.reg_list,type_name=model_name)
-            # TODO 5. task级别BACON定义
         self.model = model
     
     def plot(self,epoch):

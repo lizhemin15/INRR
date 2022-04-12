@@ -468,7 +468,6 @@ class msn(basic_net):
         # Initial data
         return self.net()
         
-# TODO 3. 使用BACON
 class bacon(inr):
     def __init__(self,params,img,lr=1e-3,type_name='bacon'):
         self.type = type_name
