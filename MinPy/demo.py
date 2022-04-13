@@ -76,11 +76,11 @@ class basic_demo(object):
         self.net.opt.zero_grad()
         return loss_all
     
-    def train(self,pic,mu=1,eta=[0],mask_in=None,fid_name=None,train_reg_if=True):
+    def train(self,pic,mu=1,eta=[0],mask_in=None,fid_name=None,train_reg_if=True,sample_num=1000):
         # loss_all = mu*loss_fid +  eta*loss_reg 
         # (Specially, when we choose mu=1, eta=0, We train the mdoel without regularizer)
         # If we set mu=0, this means we only train the regularizer term 
-        loss_all = self.get_loss(fid_name,pic,mask_in,eta,mu)
+        loss_all = self.get_loss(fid_name,pic,mask_in,eta,mu,sample_num=sample_num)
         loss_all.backward()
         self.net.update()
         if train_reg_if:

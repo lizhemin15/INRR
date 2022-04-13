@@ -22,7 +22,7 @@ class basic_task(object):
                  mask_path=None,given_mask=None,para=[2,2000,1000,500,200,1],input_mode='masked',
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',opt_type='Adam',
                 verbose=False,std_w=1e-3,act='relu',patch_num=3,n_layers=3,scale_factor=2,
-                model_load_path=None,sample_num=1000):
+                model_load_path=None):
         self.m,self.n = m,n
         self.init_data(m=m,n=n,data_path=data_path)
         self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,given_mask=given_mask,patch_num=patch_num)
@@ -36,8 +36,7 @@ class basic_task(object):
         self.init_model(model_name=model_name,para=para,
                         input_mode=input_mode,std_b=std_b,
                         opt_type=opt_type,std_w=std_w,act=act,
-                        n_layers=n_layers,scale_factor=scale_factor,
-                        sample_num=sample_num)
+                        n_layers=n_layers,scale_factor=scale_factor)
         self.reg_mode = reg_mode
         self.model_name = model_name
     
@@ -103,31 +102,34 @@ class basic_task(object):
         reg_hc = reg.hc_reg(name='lap')
         reg_row = reg.auto_reg(m,'row')
         reg_col = reg.auto_reg(n,'col')
-        reg_nn = reg.hc_reg(name='nn',model_path=model_path)
+        if model_path == None:
+            reg_nn = reg.hc_reg(name='lap')
+        else:
+            reg_nn = reg.hc_reg(name='nn',model_path=model_path)
         self.reg_list = [reg_hc,reg_row,reg_col,reg_nn]
     
     def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],
                     input_mode='masked',std_b=1e-1,opt_type='Adam',
                     std_w=1e-3,act='relu',net_list=['dmf'],n_layers=3,
-                    scale_factor=2,sample_num=1000):
+                    scale_factor=2):
         if model_name == 'dip':
-            model = demo.dip(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type,sample_num=sample_num)
+            model = demo.dip(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         elif model_name == 'fp':
-            model = demo.fp(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,act=act,std_w=std_w,sample_num=sample_num)
+            model = demo.fp(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,act=act,std_w=std_w)
         elif model_name == 'dmf':
-            model = demo.basic_dmf(para,self.reg_list,std_w,sample_num=sample_num)
+            model = demo.basic_dmf(para,self.reg_list,std_w)
         elif model_name == 'fc':
-            model = demo.fc(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,sample_num=sample_num)
+            model = demo.fc(para=para,reg=self.reg_list,img=self.pic,std_b=std_b)
         elif model_name == 'fourier' or model_name == 'garbor':
-            model = demo.mfn(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,type_name=model_name,sample_num=sample_num)
+            model = demo.mfn(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,type_name=model_name)
         elif model_name == 'fk':
-            model = demo.fk(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type,sample_num=sample_num)
+            model = demo.fk(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         elif model_name == 'multi_net':
-            model = demo.multi_net(net_list=net_list,reg=self.reg_list,img=self.pic,sample_num=sample_num)
+            model = demo.multi_net(net_list=net_list,reg=self.reg_list,img=self.pic)
         elif model_name == 'msn':
-            model = demo.msn(params=para,img=self.pic,reg=self.reg_list,n_layers=n_layers,scale_factor=scale_factor,mainnet_name='fourier',sample_num=sample_num)
+            model = demo.msn(params=para,img=self.pic,reg=self.reg_list,n_layers=n_layers,scale_factor=scale_factor,mainnet_name='fourier')
         elif model_name == 'bacon' or 'mulbacon':
-            model = demo.bacon(params=para,img=self.pic,reg=self.reg_list,type_name=model_name,sample_num=sample_num)
+            model = demo.bacon(params=para,img=self.pic,reg=self.reg_list,type_name=model_name)
         self.model = model
     
     def plot(self,epoch):
@@ -138,7 +140,7 @@ class basic_task(object):
     
     def train(self,epoch=10000,verbose=True,imshow=True,print_epoch=100,
               imshow_epoch=1000,plot_mode='gray',stop_err=None,train_reg_gap=1,
-             eta=[None,None,None,None],model_save_path=None,model_save=False):
+             eta=[None,None,None,None],model_save_path=None,model_save=False,sample_num=1000):
         self.pro_list = []
         for ite in range(epoch):
             if self.reg_mode == 'AIR':
@@ -152,9 +154,9 @@ class basic_task(object):
             else:
                 eta = [None,None,None,None]
             if ite%train_reg_gap == 0:
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=True)
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=True,sample_num=sample_num)
             else:
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=False)
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=False,sample_num=sample_num)
             if ite % print_epoch==0 and verbose == True:
                 pprint.progress_bar(ite,epoch,self.model.loss_dict) # 格式化输出训练的loss，打印出训练进度条
             if ite % imshow_epoch==0 and imshow == True:
@@ -186,8 +188,7 @@ class shuffle_task(basic_task):
                  mask_path=None,given_mask=None,para=[2,2000,1000,500,200,1],input_mode='masked',
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',
                  opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,
-                 act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_load_path=None,
-                 sample_num=1000):
+                 act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_load_path=None):
         self.m,self.n = m,n
         self.init_data(m=m,n=n,data_path=data_path,shuffle_mode=shuffle_mode)
         self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,given_mask=given_mask,patch_num=patch_num)
@@ -202,7 +203,7 @@ class shuffle_task(basic_task):
                         input_mode=input_mode,std_b=std_b,
                         opt_type=opt_type,std_w=std_w,act=act,
                         net_list=net_list,n_layers=n_layers,
-                        scale_factor=scale_factor,sample_num=sample_num)
+                        scale_factor=scale_factor)
         self.reg_mode = reg_mode
         self.model_name = model_name
         
@@ -220,7 +221,7 @@ class shuffle_task(basic_task):
     
     def train(self,epoch=10000,verbose=True,imshow=True,print_epoch=100,
               imshow_epoch=1000,plot_mode='gray',stop_err=None,train_reg_gap=1,
-             reg_start_epoch=0,eta=[None,None,None,None],model_save_path=None,model_save=False):
+             reg_start_epoch=0,eta=[None,None,None,None],model_save_path=None,model_save=False,sample_num=1000):
         self.pro_list = []
         for ite in range(epoch):
             if ite>reg_start_epoch:
@@ -237,9 +238,9 @@ class shuffle_task(basic_task):
             else:
                 eta = [None,None,None,None]
             if ite%train_reg_gap == 0:
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=True)
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=True,sample_num=sample_num)
             else:
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=False)
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=False,sample_num=sample_num)
             if ite % print_epoch==0 and verbose == True:
                 pprint.progress_bar(ite,epoch,self.model.loss_dict) # 格式化输出训练的loss，打印出训练进度条
             if ite % imshow_epoch==0 and imshow == True:
