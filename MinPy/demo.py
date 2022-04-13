@@ -24,7 +24,8 @@ class basic_demo(object):
         for reg_now in self.reg:
             self.loss_dict['loss_'+reg_now.type] = []
     
-    def get_loss(self,fid_name,pic,mask_in,eta,mu):
+    def get_loss(self,fid_name,pic,mask_in,eta,mu,sample_num=1000):
+        # TODO MultiBacon Loss函数有问题，要改
         if fid_name == None:
             loss_fid = loss.mse(self.net.data,pic,mask_in)
         elif fid_name == 'inv':
@@ -43,7 +44,10 @@ class basic_demo(object):
                 index_list.append(j)
                 j+=1
                 if reg.type == 'hc_reg':
-                    loss_reg_list.append(reg.loss(self.net.data))
+                    if reg.name == 'nn':
+                        loss_reg_list.append(reg.loss(self.net,sample_num=sample_num))
+                    else:
+                        loss_reg_list.append(reg.loss(self.net.data))
                     self.loss_dict['loss_'+reg.type].append(loss_reg_list[-1].detach().cpu().numpy())
                 else:
                     loss_reg_list.append(reg.init_data(self.net.data))

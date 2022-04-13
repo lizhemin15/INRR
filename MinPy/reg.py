@@ -8,6 +8,7 @@ from config import settings
 import torch.nn as nn
 import torch as t
 import numpy as np
+import loss
 
 cuda_if = settings.cuda_if
 cuda_num = settings.cuda_num
@@ -15,28 +16,31 @@ cuda_num = settings.cuda_num
 class hc_reg(object):
     #使用torch写的正则化项
     #handcraft, hd
-    def __init__(self,name='lap',kernel=None,p=2):
-        self.__name = name
+    def __init__(self,name='lap',kernel=None,p=2,model_path=None):
+        # TODO 此处优化一下，name 为 nn时，提前读取模型，不用每次都读取
+        if name == 'nn':
+            self.model = t.load(model_path)
+        self.name = name
         self.__kernel = kernel
         self.__p = p
         self.type = 'hc_reg'
 
-    def loss(self,M):
+    def loss(self,M,sample_num=1000):
         self.__M = M
-        if self.__name == 'tv1':
+        if self.name == 'tv1':
             return self.tv(p=1)
-        elif self.__name == 'tv2':
+        elif self.name == 'tv2':
             return self.tv(p=2)
-        elif self.__name == 'lap':
+        elif self.name == 'lap':
             return self.lap()
-        elif self.__name == 'kernel':
+        elif self.name == 'kernel':
             return self.reg_kernel(kernel=self.__kernel,p=self.__p)
-        elif self.__name == 'de_row':
+        elif self.name == 'de_row':
             return self.de('row')
-        elif self.__name == 'de_col':
+        elif self.name == 'de_col':
             return self.de('col')
-        elif self.__name == 'nn':
-            return self.nn()
+        elif self.name == 'nn':
+            return self.nn(sample_num)
         else:
             raise('Please check out your regularization term')
     
@@ -90,9 +94,17 @@ class hc_reg(object):
         self.LAP = lap
         return t.trace(t.mm(M.T,t.mm(lap,M)))
     
-    def nn(self):
-        M = self.__M
-        return t.trace(t.sqrt(t.mm(M.T,M)))
+    def nn(self,sample_num=1000):
+        # TODO 1.0 实现nn正则化，将蒸馏网络简化为一个正则项
+        # 此时的self.__M为正在训练的网络结构
+        # self.model 为加载的teacher结构
+        # 在坐标范围内随机均匀采样 sample_num个点，计算两个网络在这些点上的MSE
+        input = t.rand(sample_num,2)-0.5
+        input = input.astype('float32')
+        if cuda_if:
+            input = input.cuda(cuda_num)
+        return loss.mse(self.model(input),self.__M(input))
+
 
         
 

@@ -312,6 +312,7 @@ class MultiscaleBACON(MFNBase):
     def forward(self, coords, specified_layers=None, get_feature=False,
                 continue_layer=0, continue_feature=None):
         outputs = []
+        # TODO Loss函数有问题，要改
         if self.reuse_filters:
 
             # which layers to reuse

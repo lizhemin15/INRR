@@ -21,7 +21,8 @@ class basic_task(object):
     def __init__(self,m=240,n=240,data_path=None,mask_mode='random',random_rate=0.5,
                  mask_path=None,given_mask=None,para=[2,2000,1000,500,200,1],input_mode='masked',
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',opt_type='Adam',
-                verbose=False,std_w=1e-3,act='relu',patch_num=3,n_layers=3,scale_factor=2):
+                verbose=False,std_w=1e-3,act='relu',patch_num=3,n_layers=3,scale_factor=2,
+                model_path=None,sample_num=1000):
         self.m,self.n = m,n
         self.init_data(m=m,n=n,data_path=data_path)
         self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,given_mask=given_mask,patch_num=patch_num)
@@ -31,10 +32,12 @@ class basic_task(object):
             else:
                 plot.red_im(self.pic.cpu()*self.mask_in.cpu())
         self.init_pro(pro_mode=pro_mode)
-        self.init_reg(m,n)
+        self.init_reg(m,n,model_path=model_path)
         self.init_model(model_name=model_name,para=para,
                         input_mode=input_mode,std_b=std_b,
-                        opt_type=opt_type,std_w=std_w,act=act,n_layers=n_layers,scale_factor=scale_factor)
+                        opt_type=opt_type,std_w=std_w,act=act,
+                        n_layers=n_layers,scale_factor=scale_factor,
+                        sample_num=sample_num)
         self.reg_mode = reg_mode
         self.model_name = model_name
     
@@ -96,34 +99,35 @@ class basic_task(object):
             raise('Wrong projection mode')
         self.my_pro = my_pro
     
-    def init_reg(self,m=240,n=240):
+    def init_reg(self,m=240,n=240,model_path=None):
         reg_hc = reg.hc_reg(name='lap')
         reg_row = reg.auto_reg(m,'row')
         reg_col = reg.auto_reg(n,'col')
-        reg_cnn = reg.hc_reg(name='nn')
-        self.reg_list = [reg_hc,reg_row,reg_col,reg_cnn]
+        reg_nn = reg.hc_reg(name='nn',model_path=model_path)
+        self.reg_list = [reg_hc,reg_row,reg_col,reg_nn]
     
     def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],
                     input_mode='masked',std_b=1e-1,opt_type='Adam',
-                    std_w=1e-3,act='relu',net_list=['dmf'],n_layers=3,scale_factor=2):
+                    std_w=1e-3,act='relu',net_list=['dmf'],n_layers=3,
+                    scale_factor=2,sample_num=1000):
         if model_name == 'dip':
-            model = demo.dip(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
+            model = demo.dip(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type,sample_num=sample_num)
         elif model_name == 'fp':
-            model = demo.fp(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,act=act,std_w=std_w)
+            model = demo.fp(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,act=act,std_w=std_w,sample_num=sample_num)
         elif model_name == 'dmf':
-            model = demo.basic_dmf(para,self.reg_list,std_w)
+            model = demo.basic_dmf(para,self.reg_list,std_w,sample_num=sample_num)
         elif model_name == 'fc':
-            model = demo.fc(para=para,reg=self.reg_list,img=self.pic,std_b=std_b)
+            model = demo.fc(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,sample_num=sample_num)
         elif model_name == 'fourier' or model_name == 'garbor':
-            model = demo.mfn(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,type_name=model_name)
+            model = demo.mfn(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,type_name=model_name,sample_num=sample_num)
         elif model_name == 'fk':
-            model = demo.fk(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
+            model = demo.fk(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type,sample_num=sample_num)
         elif model_name == 'multi_net':
-            model = demo.multi_net(net_list=net_list,reg=self.reg_list,img=self.pic)
+            model = demo.multi_net(net_list=net_list,reg=self.reg_list,img=self.pic,sample_num=sample_num)
         elif model_name == 'msn':
-            model = demo.msn(params=para,img=self.pic,reg=self.reg_list,n_layers=n_layers,scale_factor=scale_factor,mainnet_name='fourier')
+            model = demo.msn(params=para,img=self.pic,reg=self.reg_list,n_layers=n_layers,scale_factor=scale_factor,mainnet_name='fourier',sample_num=sample_num)
         elif model_name == 'bacon' or 'mulbacon':
-            model = demo.bacon(params=para,img=self.pic,reg=self.reg_list,type_name=model_name)
+            model = demo.bacon(params=para,img=self.pic,reg=self.reg_list,type_name=model_name,sample_num=sample_num)
         self.model = model
     
     def plot(self,epoch):
@@ -170,6 +174,7 @@ class basic_task(object):
         # 绘图
         if imshow == True:
             self.plot(ite+1)
+        # TODO: 存储模型
     
     def save(self,data=None,path=None):
         with open(path,'wb') as f:
@@ -180,7 +185,8 @@ class shuffle_task(basic_task):
                  mask_path=None,given_mask=None,para=[2,2000,1000,500,200,1],input_mode='masked',
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',
                  opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,
-                 act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2):
+                 act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_path=None,
+                 sample_num=1000):
         self.m,self.n = m,n
         self.init_data(m=m,n=n,data_path=data_path,shuffle_mode=shuffle_mode)
         self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,given_mask=given_mask,patch_num=patch_num)
@@ -190,10 +196,12 @@ class shuffle_task(basic_task):
             else:
                 plot.red_im(self.pic.cpu()*self.mask_in.cpu())
         self.init_pro(pro_mode=pro_mode)
-        self.init_reg(m,n)
+        self.init_reg(m,n,model_path=model_path)
         self.init_model(model_name=model_name,para=para,
                         input_mode=input_mode,std_b=std_b,
-                        opt_type=opt_type,std_w=std_w,act=act,net_list=net_list,n_layers=n_layers,scale_factor=scale_factor)
+                        opt_type=opt_type,std_w=std_w,act=act,
+                        net_list=net_list,n_layers=n_layers,
+                        scale_factor=scale_factor,sample_num=sample_num)
         self.reg_mode = reg_mode
         self.model_name = model_name
         
@@ -262,17 +270,9 @@ class shuffle_task(basic_task):
         # 绘图
         if imshow == True:
             self.plot(ite+1)
-
+        # TODO: 存储模型
 # 基础的去噪任务
 # TODO 2.去噪任务
 
-
-# 基础的蒸馏网络
-# TODO 1.蒸馏网络
-'''
-层级上比所有的逆问题都要高一级，由于训练集会发生改变，所以重新构造了distillation task
-在这个task中可以调用所有的逆问题。
-蒸馏网络思想为使用teacher网络学习到比较好的训练点外预测值，再使用表达能力强，泛化能力弱的student网络学习原数据点+teacher得到的点。
-'''
 
 
