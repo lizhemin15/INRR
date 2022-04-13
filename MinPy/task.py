@@ -22,7 +22,7 @@ class basic_task(object):
                  mask_path=None,given_mask=None,para=[2,2000,1000,500,200,1],input_mode='masked',
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',opt_type='Adam',
                 verbose=False,std_w=1e-3,act='relu',patch_num=3,n_layers=3,scale_factor=2,
-                model_path=None,sample_num=1000):
+                model_load_path=None,sample_num=1000):
         self.m,self.n = m,n
         self.init_data(m=m,n=n,data_path=data_path)
         self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,given_mask=given_mask,patch_num=patch_num)
@@ -32,7 +32,7 @@ class basic_task(object):
             else:
                 plot.red_im(self.pic.cpu()*self.mask_in.cpu())
         self.init_pro(pro_mode=pro_mode)
-        self.init_reg(m,n,model_path=model_path)
+        self.init_reg(m,n,model_path=model_load_path)
         self.init_model(model_name=model_name,para=para,
                         input_mode=input_mode,std_b=std_b,
                         opt_type=opt_type,std_w=std_w,act=act,
@@ -138,7 +138,7 @@ class basic_task(object):
     
     def train(self,epoch=10000,verbose=True,imshow=True,print_epoch=100,
               imshow_epoch=1000,plot_mode='gray',stop_err=None,train_reg_gap=1,
-             eta=[None,None,None,None]):
+             eta=[None,None,None,None],model_save_path=None,model_save=False):
         self.pro_list = []
         for ite in range(epoch):
             if self.reg_mode == 'AIR':
@@ -174,7 +174,8 @@ class basic_task(object):
         # 绘图
         if imshow == True:
             self.plot(ite+1)
-        # TODO: 存储模型
+        if model_save == True:
+            t.save(self.model.net,model_save_path)
     
     def save(self,data=None,path=None):
         with open(path,'wb') as f:
@@ -185,7 +186,7 @@ class shuffle_task(basic_task):
                  mask_path=None,given_mask=None,para=[2,2000,1000,500,200,1],input_mode='masked',
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',
                  opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,
-                 act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_path=None,
+                 act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_load_path=None,
                  sample_num=1000):
         self.m,self.n = m,n
         self.init_data(m=m,n=n,data_path=data_path,shuffle_mode=shuffle_mode)
@@ -196,7 +197,7 @@ class shuffle_task(basic_task):
             else:
                 plot.red_im(self.pic.cpu()*self.mask_in.cpu())
         self.init_pro(pro_mode=pro_mode)
-        self.init_reg(m,n,model_path=model_path)
+        self.init_reg(m,n,model_path=model_load_path)
         self.init_model(model_name=model_name,para=para,
                         input_mode=input_mode,std_b=std_b,
                         opt_type=opt_type,std_w=std_w,act=act,
@@ -219,7 +220,7 @@ class shuffle_task(basic_task):
     
     def train(self,epoch=10000,verbose=True,imshow=True,print_epoch=100,
               imshow_epoch=1000,plot_mode='gray',stop_err=None,train_reg_gap=1,
-             reg_start_epoch=0,eta=[None,None,None,None]):
+             reg_start_epoch=0,eta=[None,None,None,None],model_save_path=None,model_save=False):
         self.pro_list = []
         for ite in range(epoch):
             if ite>reg_start_epoch:
@@ -270,7 +271,8 @@ class shuffle_task(basic_task):
         # 绘图
         if imshow == True:
             self.plot(ite+1)
-        # TODO: 存储模型
+        if model_save == True:
+            t.save(self.model.net,model_save_path)
 # 基础的去噪任务
 # TODO 2.去噪任务
 
