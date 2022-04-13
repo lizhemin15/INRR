@@ -16,6 +16,7 @@ from toolbox.projection import svd_pro,mask_pro
 from toolbox import dataloader,plot,pprint
 import reg,demo
 
+# 基础的缺失补全任务
 class basic_task(object):
     def __init__(self,m=240,n=240,data_path=None,mask_mode='random',random_rate=0.5,
                  mask_path=None,given_mask=None,para=[2,2000,1000,500,200,1],input_mode='masked',
@@ -72,6 +73,12 @@ class basic_task(object):
                 for j in range(self.n):
                     if (i%pixel_m-pixel_m/2.0)*(j%pixel_n-pixel_n/2.0)<0:
                         mask_in[i,j] = 0
+        elif mask_mode == 'down_sample':
+            if cuda_if:
+                mask_in = t.zeros((self.m,self.n)).cuda(cuda_num)
+            else:
+                mask_in = t.zeros((self.m,self.n))
+            mask_in[::patch_num,::patch_num] = 1
         elif mask_mode == 'given':
             mask_in = given_mask
         if cuda_if:
@@ -255,4 +262,17 @@ class shuffle_task(basic_task):
         # 绘图
         if imshow == True:
             self.plot(ite+1)
-            
+
+# 基础的去噪任务
+# TODO 2.去噪任务
+
+
+# 基础的蒸馏网络
+# TODO 1.蒸馏网络
+'''
+层级上比所有的逆问题都要高一级，由于训练集会发生改变，所以重新构造了distillation task
+在这个task中可以调用所有的逆问题。
+蒸馏网络思想为使用teacher网络学习到比较好的训练点外预测值，再使用表达能力强，泛化能力弱的student网络学习原数据点+teacher得到的点。
+'''
+
+
