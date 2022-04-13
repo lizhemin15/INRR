@@ -98,10 +98,9 @@ class hc_reg(object):
         # self.model 为加载的teacher结构
         # 在坐标范围内随机均匀采样 sample_num个点，计算两个网络在这些点上的MSE
         input = t.rand(sample_num,2)-0.5
-        input = input.astype('float32')
         if cuda_if:
             input = input.cuda(cuda_num)
-        return loss.mse(self.model(input),self.__M(input))
+        return loss.mse(self.model(input),self.__M.net(input))
 
 
         

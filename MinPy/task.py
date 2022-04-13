@@ -140,7 +140,7 @@ class basic_task(object):
     
     def train(self,epoch=10000,verbose=True,imshow=True,print_epoch=100,
               imshow_epoch=1000,plot_mode='gray',stop_err=None,train_reg_gap=1,
-             eta=[None,None,None,None],model_save_path=None,model_save=False,sample_num=1000):
+             eta=[None,None,None,None],model_save_path=None,model_save=False,sample_num=1000,fid_name=None):
         self.pro_list = []
         for ite in range(epoch):
             if self.reg_mode == 'AIR':
@@ -154,9 +154,9 @@ class basic_task(object):
             else:
                 eta = [None,None,None,None]
             if ite%train_reg_gap == 0:
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=True,sample_num=sample_num)
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=True,sample_num=sample_num,fid_name=fid_name)
             else:
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=False,sample_num=sample_num)
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=False,sample_num=sample_num,fid_name=fid_name)
             if ite % print_epoch==0 and verbose == True:
                 pprint.progress_bar(ite,epoch,self.model.loss_dict) # 格式化输出训练的loss，打印出训练进度条
             if ite % imshow_epoch==0 and imshow == True:
@@ -177,7 +177,7 @@ class basic_task(object):
         if imshow == True:
             self.plot(ite+1)
         if model_save == True:
-            t.save(self.model.net,model_save_path)
+            t.save(self.model.net.net,model_save_path)
     
     def save(self,data=None,path=None):
         with open(path,'wb') as f:
@@ -221,7 +221,8 @@ class shuffle_task(basic_task):
     
     def train(self,epoch=10000,verbose=True,imshow=True,print_epoch=100,
               imshow_epoch=1000,plot_mode='gray',stop_err=None,train_reg_gap=1,
-             reg_start_epoch=0,eta=[None,None,None,None],model_save_path=None,model_save=False,sample_num=1000):
+             reg_start_epoch=0,eta=[None,None,None,None],model_save_path=None,
+             model_save=False,sample_num=1000,fid_name=None):
         self.pro_list = []
         for ite in range(epoch):
             if ite>reg_start_epoch:
@@ -238,9 +239,9 @@ class shuffle_task(basic_task):
             else:
                 eta = [None,None,None,None]
             if ite%train_reg_gap == 0:
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=True,sample_num=sample_num)
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=True,sample_num=sample_num,fid_name=fid_name)
             else:
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=False,sample_num=sample_num)
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=False,sample_num=sample_num,fid_name=fid_name)
             if ite % print_epoch==0 and verbose == True:
                 pprint.progress_bar(ite,epoch,self.model.loss_dict) # 格式化输出训练的loss，打印出训练进度条
             if ite % imshow_epoch==0 and imshow == True:
@@ -273,7 +274,7 @@ class shuffle_task(basic_task):
         if imshow == True:
             self.plot(ite+1)
         if model_save == True:
-            t.save(self.model.net,model_save_path)
+            t.save(self.model.net.net,model_save_path)
 # 基础的去噪任务
 # TODO 2.去噪任务
 

@@ -25,7 +25,6 @@ class basic_demo(object):
             self.loss_dict['loss_'+reg_now.type] = []
     
     def get_loss(self,fid_name,pic,mask_in,eta,mu,sample_num=1000):
-        # TODO MultiBacon Loss函数有问题，要改
         if fid_name == None:
             loss_fid = loss.mse(self.net.data,pic,mask_in)
         elif fid_name == 'inv':
@@ -34,6 +33,10 @@ class basic_demo(object):
             loss_fid = loss.mse_id(self.net.data,pic,mask_in,direc='left')
         elif fid_name == 'idr':
             loss_fid = loss.mse_id(self.net.data,pic,mask_in,direc='right')
+        elif fid_name == 'mulbacon':
+            loss_fid = 0
+            for model_data in self.net.multi_outputs:
+                loss_fid += loss.mse(model_data.reshape(pic.shape),pic,mask_in)
         else:
             raise('Wrong fid_name=',fid_name)
         loss_reg_list = []
