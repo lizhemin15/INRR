@@ -26,6 +26,12 @@ def rmse(pre,rel,mask=None):
         mask = mask.cuda(cuda_num)
     return t.sqrt(((pre-rel)*mask).pow(2).mean())
 
+def psnr(pre,rel):
+    MSE = mse(pre,rel)
+    return 10*t.log10(1/MSE)
+
+def ssim(pre,rel):
+    pass
 
 def nmae(pre,rel,mask=None):
     if mask == None:
