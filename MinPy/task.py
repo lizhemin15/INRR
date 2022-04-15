@@ -22,7 +22,7 @@ class shuffle_task(object):
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',
                  opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,
                  act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_load_path=None,
-                 task_type='completion',noise_dict=None):
+                 task_type='completion',noise_dict=None,sample_mode='random'):
         self.m,self.n = m,n
         self.task_type = task_type
         self.noise_dict = noise_dict
@@ -34,7 +34,7 @@ class shuffle_task(object):
             else:
                 plot.red_im(self.pic.cpu()*self.mask_in.cpu())
         self.init_pro(pro_mode=pro_mode)
-        self.init_reg(m,n,model_path=model_load_path)
+        self.init_reg(m,n,model_path=model_load_path,sample_mode=sample_mode)
         self.init_model(model_name=model_name,para=para,
                         input_mode=input_mode,std_b=std_b,
                         opt_type=opt_type,std_w=std_w,act=act,
@@ -213,14 +213,14 @@ class shuffle_task(object):
             raise('Wrong projection mode')
         self.my_pro = my_pro
     
-    def init_reg(self,m=240,n=240,model_path=None):
+    def init_reg(self,m=240,n=240,model_path=None,sample_mode='random'):
         reg_hc = reg.hc_reg(name='lap')
         reg_row = reg.auto_reg(m,'row')
         reg_col = reg.auto_reg(n,'col')
         if model_path == None:
             reg_nn = reg.hc_reg(name='lap')
         else:
-            reg_nn = reg.hc_reg(name='nn',model_path=model_path)
+            reg_nn = reg.hc_reg(name='nn',model_path=model_path,sample_mode=sample_mode)
         self.reg_list = [reg_hc,reg_row,reg_col,reg_nn]
     
     def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],

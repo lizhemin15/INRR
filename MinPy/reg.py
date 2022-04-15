@@ -16,13 +16,14 @@ cuda_num = settings.cuda_num
 class hc_reg(object):
     #使用torch写的正则化项
     #handcraft, hd
-    def __init__(self,name='lap',kernel=None,p=2,model_path=None):
+    def __init__(self,name='lap',kernel=None,p=2,model_path=None,sample_mode='random'):
         if name == 'nn':
             self.model = t.load(model_path)
         self.name = name
         self.__kernel = kernel
         self.__p = p
         self.type = 'hc_reg'
+        self.sample_mode = sample_mode
 
     def loss(self,M,sample_num=1000):
         self.__M = M
@@ -97,7 +98,14 @@ class hc_reg(object):
         # 此时的self.__M为正在训练的网络结构
         # self.model 为加载的teacher结构
         # 在坐标范围内随机均匀采样 sample_num个点，计算两个网络在这些点上的MSE
-        input = t.rand(sample_num,2)-0.5
+        if self.sample_mode == 'random':
+            input = t.rand(sample_num,2)-0.5
+        elif self.sample_mode == 'uniform':
+            x = np.linspace(0,1,sample_num)-0.5
+            y = np.linspace(0,1,sample_num)-0.5
+            xx,yy = np.meshgrid(x,y)
+            self.xyz = np.stack([xx,yy],axis=2).astype('float32')
+            self.input = t.tensor(self.xyz).reshape(-1,2)
         if cuda_if:
             input = input.cuda(cuda_num)
         return loss.mse(self.model(input),self.__M.net(input))

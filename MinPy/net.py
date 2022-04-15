@@ -301,20 +301,19 @@ class inr(basic_net):
         y = np.linspace(0,1,self.m)-0.5
         xx,yy = np.meshgrid(x,y)
         self.xyz = np.stack([xx,yy],axis=2).astype('float32')
+        self.input = t.tensor(self.xyz).reshape(-1,2)
         if cuda_if:
-            self.input = t.tensor(self.xyz).cuda(cuda_num).reshape(-1,2)
-        else:
-            self.input = t.tensor(self.xyz).reshape(-1,2)
+            self.input = self.input.cuda(cuda_num)
+            
 
     def cor2img(self,img):
         # 给定形状为mn*1的网络输出，返回m*n的灰度图像
         return img.reshape(self.m,self.n)
     
     def init_para(self,params,std_b,act,std_w):
+        model = bias_net(params,std_b,act=act,std_w=std_w)
         if cuda_if:
-            model = bias_net(params,std_b,act=act,std_w=std_w).cuda(cuda_num)
-        else:
-            model = bias_net(params,std_b,act=act,std_w=std_w)
+            model = model.cuda(cuda_num)
         return model
     
     def init_data(self):
