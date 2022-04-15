@@ -116,7 +116,7 @@ class shuffle_task(object):
                 elif self.reg_mode == 'TV':
                     eta = [1e-3,None,None,None]
                 elif self.reg_mode == 'NN':
-                    eta = [None,None,None,1e-5]
+                    eta = [None,None,None,1e-1]
                 elif self.reg_mode == 'eta':
                     eta = eta
                 else:

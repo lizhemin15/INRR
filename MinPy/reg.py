@@ -104,8 +104,8 @@ class hc_reg(object):
             x = np.linspace(0,1,sample_num)-0.5
             y = np.linspace(0,1,sample_num)-0.5
             xx,yy = np.meshgrid(x,y)
-            self.xyz = np.stack([xx,yy],axis=2).astype('float32')
-            self.input = t.tensor(self.xyz).reshape(-1,2)
+            xyz = np.stack([xx,yy],axis=2).astype('float32')
+            input = t.tensor(xyz).reshape(-1,2)
         if cuda_if:
             input = input.cuda(cuda_num)
         return loss.mse(self.model(input),self.__M.net(input))
