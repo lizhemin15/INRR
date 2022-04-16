@@ -356,16 +356,16 @@ class fc(inr):
         self.opt = self.init_opt(lr)
 
 class mfn(inr):
-    def __init__(self,params,img,lr=1e-3,std_b=1e-3,type_name='fourier'):
+    def __init__(self,params,img,lr=1e-3,type_name='fourier'):
         self.type = type_name
-        self.net = self.init_para(params,std_b=std_b)
+        self.net = self.init_para(params)
         self.img = img
         self.img2cor()
         #print(self.input.shape)
         self.data = self.init_data()
         self.opt = self.init_opt(lr)
 
-    def init_para(self,params,std_b):
+    def init_para(self,params):
         in_size = params[0]
         out_size = params[-1]
         hidden_size = params[1]

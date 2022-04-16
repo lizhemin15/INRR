@@ -161,7 +161,7 @@ class fc(basic_demo):
 class mfn(basic_demo):
     def __init__(self,para=[2,100,100,1],reg=None,type_name='fourier',hadm_lr=1e-3,img=None,net_lr=1e-3,std_b=1e-3):
         #self.net = net.dmf(para)
-        self.net = net.mfn(para,img=img,lr=net_lr,std_b=std_b,type_name=type_name)
+        self.net = net.mfn(para,img=img,lr=net_lr,type_name=type_name)
         self.reg = reg
         self.loss_dict={'loss_fid':[],'loss_all':[],'nmae_test':[]}
         for reg_now in self.reg:
