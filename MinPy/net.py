@@ -511,19 +511,15 @@ class dis_net(basic_net):
     def __init__(self,lr=1e-3):
         self.type = 'dis_net'
         self.net = self.init_para()
-        self.data = self.init_data()
         self.opt = self.init_opt(lr)
         
     def init_para(self):
         if cuda_if:
-            model = dis_net().cuda(cuda_num)
+            model = discriminator().cuda(cuda_num)
         else:
-            model = dis_net()
+            model = discriminator()
         return model
-    
-    def init_data(self):
-        # Initial data
-        return self.net()
+
 
 
 

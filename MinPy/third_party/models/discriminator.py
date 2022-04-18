@@ -19,7 +19,7 @@ class Linear(t.nn.Module):
         return result
 
 class dis_net(t.nn.Module):
-    def __init__(self, para=[3,2000,1000,500,200,1],std_b=1e-1,bn_if=False,act='tanh',std_w=1e-3):
+    def __init__(self, para=[3,500,1],std_b=1e-1,bn_if=False,act='tanh',std_w=1e-3):
         super(dis_net, self).__init__()
         self.bn_if = bn_if
         if act == 'relu':
@@ -82,14 +82,5 @@ class dis_net(t.nn.Module):
         x = act_func(self.fc0(x))
         if self.bn_if:
             x = self.bn0(x)
-        x = act_func(self.fc1(x))
-        if self.bn_if:
-            x = self.bn1(x)
-        x = act_func(self.fc2(x))
-        if self.bn_if:
-            x = self.bn2(x)
-        x = act_func(self.fc3(x))
-        if self.bn_if:
-            x = self.bn3(x)
-        x = (act_func(self.fc4(x))+1)/2
+        x = (act_func(self.fc1(x))+1)/2
         return x

@@ -38,9 +38,9 @@ class basic_demo(object):
             for model_data in self.net.multi_outputs:
                 loss_fid += loss.mse(model_data.reshape(pic.shape),pic,mask_in)
         elif fid_name == 'gen':
-            loss_fid = loss.gen_loss(self.net.net,self.dis,pic,mask_in)
+            loss_fid = loss.gen_loss(self.net.net,self.dis.net,pic,mask_in)
         elif fid_name == 'dis':
-            loss_fid = loss.dis_loss(self.net.net,self.dis,pic,mask_in)
+            loss_fid = loss.dis_loss(self.net.net,self.dis.net,pic,mask_in)
         else:
             raise('Wrong fid_name=',fid_name)
         loss_reg_list = []
@@ -83,7 +83,7 @@ class basic_demo(object):
         self.net.opt.zero_grad()
         return loss_all
     
-    def train(self,pic,mu=1,eta=[0],mask_in=None,fid_name=None,train_reg_if=True,sample_num=1000,gan_if=False):
+    def train(self,pic,mu=1,eta=[0],mask_in=None,fid_name=None,train_reg_if=True,sample_num=1000,gan_if=False,dis_step=1):
         # loss_all = mu*loss_fid +  eta*loss_reg 
         # (Specially, when we choose mu=1, eta=0, We train the mdoel without regularizer)
         # If we set mu=0, this means we only train the regularizer term 
@@ -91,13 +91,13 @@ class basic_demo(object):
             loss_gen = self.get_loss('gen',pic,mask_in,eta,mu,sample_num=sample_num)
             loss_gen.backward(retain_graph=True)
             self.net.update()
-            loss_dis = self.get_loss('dis',pic,mask_in,eta,mu,sample_num=sample_num)
-            loss_dis.backward(retain_graph=True)
-            self.dis.opt.step()
-        else:
-            loss_all = self.get_loss(fid_name,pic,mask_in,eta,mu,sample_num=sample_num)
-            loss_all.backward()
-            self.net.update()
+            for _ in range(dis_step):
+                loss_dis = self.get_loss('dis',pic,mask_in,eta,mu,sample_num=sample_num)
+                loss_dis.backward(retain_graph=True)
+                self.dis.opt.step()
+        loss_all = self.get_loss(fid_name,pic,mask_in,eta,mu,sample_num=sample_num)
+        loss_all.backward()
+        self.net.update()
         if train_reg_if:
             for reg in self.reg:
                 if reg.type != 'hc_reg':

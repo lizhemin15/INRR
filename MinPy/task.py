@@ -107,7 +107,7 @@ class shuffle_task(object):
     def train(self,epoch=10000,verbose=True,imshow=True,print_epoch=100,
               imshow_epoch=1000,plot_mode='gray',stop_err=None,train_reg_gap=1,
              reg_start_epoch=0,eta=[None,None,None,None],model_save_path=None,
-             model_save=False,sample_num=1000,fid_name=None,gan_if=False):
+             model_save=False,sample_num=1000,fid_name=None,gan_if=False,dis_step=1):
         self.pro_list = []
         for ite in range(epoch):
             if ite>reg_start_epoch:
@@ -124,9 +124,11 @@ class shuffle_task(object):
             else:
                 eta = [None,None,None,None]
             if ite%train_reg_gap == 0:
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=True,sample_num=sample_num,fid_name=fid_name,gan_if=gan_if)
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,
+                train_reg_if=True,sample_num=sample_num,fid_name=fid_name,gan_if=gan_if,dis_step=dis_step)
             else:
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=False,sample_num=sample_num,fid_name=fid_name,gan_if=gan_if)
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,
+                train_reg_if=False,sample_num=sample_num,fid_name=fid_name,gan_if=gan_if,dis_step=dis_step)
             if ite % print_epoch==0 and verbose == True:
                 pprint.progress_bar(ite,epoch,self.model.loss_dict) # 格式化输出训练的loss，打印出训练进度条
             if ite % imshow_epoch==0 and imshow == True:
