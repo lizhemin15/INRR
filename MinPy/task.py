@@ -22,7 +22,7 @@ class shuffle_task(object):
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',
                  opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,
                  act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_load_path=None,
-                 task_type='completion',noise_dict=None,sample_mode='random'):
+                 task_type='completion',noise_dict=None,sample_mode='random',gan_if=False):
         self.m,self.n = m,n
         self.task_type = task_type
         self.noise_dict = noise_dict
@@ -39,7 +39,7 @@ class shuffle_task(object):
                         input_mode=input_mode,std_b=std_b,
                         opt_type=opt_type,std_w=std_w,act=act,
                         net_list=net_list,n_layers=n_layers,
-                        scale_factor=scale_factor)
+                        scale_factor=scale_factor,gan_if=gan_if)
         self.reg_mode = reg_mode
         self.model_name = model_name
         
@@ -226,7 +226,7 @@ class shuffle_task(object):
     def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],
                     input_mode='masked',std_b=1e-1,opt_type='Adam',
                     std_w=1e-3,act='relu',net_list=['dmf'],n_layers=3,
-                    scale_factor=2):
+                    scale_factor=2,gan_if=False):
         if model_name == 'dip':
             model = demo.dip(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         elif model_name == 'fp':
@@ -236,7 +236,7 @@ class shuffle_task(object):
         elif model_name == 'fc':
             model = demo.fc(para=para,reg=self.reg_list,img=self.pic,std_b=std_b)
         elif model_name == 'fourier' or model_name == 'garbor':
-            model = demo.mfn(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,type_name=model_name)
+            model = demo.mfn(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,type_name=model_name,gan_if=gan_if)
         elif model_name == 'fk':
             model = demo.fk(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         elif model_name == 'multi_net':
