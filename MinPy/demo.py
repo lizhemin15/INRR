@@ -37,6 +37,10 @@ class basic_demo(object):
             loss_fid = 0
             for model_data in self.net.multi_outputs:
                 loss_fid += loss.mse(model_data.reshape(pic.shape),pic,mask_in)
+        elif fid_name == 'gen':
+            loss_fid = loss.gen_loss(self.net.net,self.dis,pic,mask_in)
+        elif fid_name == 'dis':
+            loss_fid = loss.dis_loss(self.net.net,self.dis,pic,mask_in)
         else:
             raise('Wrong fid_name=',fid_name)
         loss_reg_list = []
@@ -79,12 +83,19 @@ class basic_demo(object):
         self.net.opt.zero_grad()
         return loss_all
     
-    def train(self,pic,mu=1,eta=[0],mask_in=None,fid_name=None,train_reg_if=True,sample_num=1000):
+    def train(self,pic,mu=1,eta=[0],mask_in=None,fid_name=None,train_reg_if=True,sample_num=1000,gan_if=False):
         # loss_all = mu*loss_fid +  eta*loss_reg 
         # (Specially, when we choose mu=1, eta=0, We train the mdoel without regularizer)
         # If we set mu=0, this means we only train the regularizer term 
-        loss_all = self.get_loss(fid_name,pic,mask_in,eta,mu,sample_num=sample_num)
-        loss_all.backward()
+        if gan_if:
+            loss_gen = self.get_loss('gen',pic,mask_in,eta,mu,sample_num=sample_num)
+            loss_gen.backward(retain_graph=True)
+            loss_dis = self.get_loss('dis',pic,mask_in,eta,mu,sample_num=sample_num)
+            loss_dis.backward(retain_graph=True)
+            self.dis_opt.step()
+        else:
+            loss_all = self.get_loss(fid_name,pic,mask_in,eta,mu,sample_num=sample_num)
+            loss_all.backward()
         self.net.update()
         if train_reg_if:
             for reg in self.reg:
@@ -159,8 +170,11 @@ class fc(basic_demo):
             self.loss_dict['loss_'+reg_now.type] = []
 
 class mfn(basic_demo):
-    def __init__(self,para=[2,100,100,1],reg=None,type_name='fourier',hadm_lr=1e-3,img=None,net_lr=1e-3,std_b=1e-3):
+    def __init__(self,para=[2,100,100,1],reg=None,type_name='fourier',hadm_lr=1e-3,img=None,net_lr=1e-3,std_b=1e-3,gan_if=False):
         #self.net = net.dmf(para)
+        # TODO 5. gan_if 然后定义一个全连接神经网络作为判别器
+        if gan_if:
+            pass
         self.net = net.mfn(para,img=img,lr=net_lr,type_name=type_name)
         self.reg = reg
         self.loss_dict={'loss_fid':[],'loss_all':[],'nmae_test':[]}
@@ -283,4 +297,7 @@ class bacon(basic_demo):
         self.loss_dict={'loss_fid':[],'loss_all':[],'nmae_test':[]}
         for reg_now in self.reg:
             self.loss_dict['loss_'+reg_now.type] = []
+
+
+
 

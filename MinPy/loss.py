@@ -8,6 +8,8 @@ from config import settings
 import torch.nn as nn
 import torch as t
 
+import numpy as np
+
 
 cuda_if = settings.cuda_if
 cuda_num = settings.cuda_num
@@ -70,3 +72,32 @@ def mse_id(pre,rel,mask=None,direc='left'):
     return mse(pre_now,rel_now,mask)
 
 
+def gen_loss(gen,dis,pic,mask):
+    if mask == None:
+        mask = t.ones(pic.shape)
+    if cuda_if:
+        mask = mask.cuda(cuda_num)
+    m,n = mask.shape
+    x = np.linspace(0,1,n)-0.5
+    y = np.linspace(0,1,m)-0.5
+    xx,yy = np.meshgrid(x,y)
+    xyz = np.stack([xx,yy],axis=2).astype('float32')
+    real_xy = t.tensor(xyz[mask==1]).reshape(-1,2)
+    rand_xy = t.rand(m*n,2)-0.5
+    if cuda_if:
+        real_xy = real_xy.cuda(cuda_num)
+        rand_xy = rand_xy.cuda(cuda_num)
+    return -(1-dis(gen(real_xy)).mean())-dis(gen(rand_xy)).mean()
+
+
+
+def dis_loss(gen,dis,pic,mask):
+    if mask == None:
+        mask = t.ones(pic.shape)
+    if cuda_if:
+        mask = mask.cuda(cuda_num)
+    m,n = mask.shape
+    rand_xy = t.rand(m*n,2)-0.5
+    if cuda_if:
+        rand_xy = rand_xy.cuda(cuda_num)
+    return dis(gen(rand_xy)).mean()

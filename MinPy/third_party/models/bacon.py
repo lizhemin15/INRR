@@ -104,7 +104,7 @@ class MFNBase(nn.Module):
     def __init__(self, hidden_size, out_size, n_layers, weight_scale,
                  bias=True, output_act=False):
         super().__init__()
-
+        # TODO 在网络结构中添加dropout
         self.linear = nn.ModuleList(
             [nn.Linear(hidden_size, hidden_size, bias) for _ in range(n_layers)]
         )
