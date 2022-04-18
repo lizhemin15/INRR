@@ -71,7 +71,6 @@ def mse_id(pre,rel,mask=None,direc='left'):
     rel_now = rel
     return mse(pre_now,rel_now,mask)
 
-
 def gen_loss(gen,dis,pic,mask):
     if mask == None:
         mask = t.ones(pic.shape)
@@ -83,11 +82,15 @@ def gen_loss(gen,dis,pic,mask):
     xx,yy = np.meshgrid(x,y)
     xyz = np.stack([xx,yy],axis=2).astype('float32')
     real_xy = t.tensor(xyz[mask==1]).reshape(-1,2)
-    rand_xy = t.rand(m*n,2)-0.5
+    rand_xy = t.rand(t.sum(mask),2)-0.5
     if cuda_if:
         real_xy = real_xy.cuda(cuda_num)
         rand_xy = rand_xy.cuda(cuda_num)
-    return -(1-dis(gen(real_xy)).mean())-dis(gen(rand_xy)).mean()
+    pre_real = gen(real_xy)
+    pre_rand = gen(rand_xy)
+    real_input = t.cat((real_xy,pre_real),1)
+    rand_input = t.cat((rand_xy,pre_rand),1)
+    return -(1-dis(real_input).mean())-dis(rand_input).mean()
 
 
 
@@ -97,7 +100,9 @@ def dis_loss(gen,dis,pic,mask):
     if cuda_if:
         mask = mask.cuda(cuda_num)
     m,n = mask.shape
-    rand_xy = t.rand(m*n,2)-0.5
+    rand_xy = t.rand(t.sum(mask),2)-0.5
     if cuda_if:
         rand_xy = rand_xy.cuda(cuda_num)
-    return dis(gen(rand_xy)).mean()
+    pre_rand = gen(rand_xy)
+    rand_input = t.cat((rand_xy,pre_rand),1)
+    return dis(gen(rand_input)).mean()
