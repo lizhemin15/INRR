@@ -22,7 +22,7 @@ class shuffle_task(object):
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',
                  opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,
                  act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_load_path=None,
-                 task_type='completion',noise_dict=None,sample_mode='random',gan_if=False):
+                 task_type='completion',noise_dict=None,sample_mode='random'):
         self.m,self.n = m,n
         self.task_type = task_type
         self.noise_dict = noise_dict
@@ -39,7 +39,7 @@ class shuffle_task(object):
                         input_mode=input_mode,std_b=std_b,
                         opt_type=opt_type,std_w=std_w,act=act,
                         net_list=net_list,n_layers=n_layers,
-                        scale_factor=scale_factor,gan_if=gan_if)
+                        scale_factor=scale_factor)
         self.reg_mode = reg_mode
         self.model_name = model_name
         
@@ -62,9 +62,8 @@ class shuffle_task(object):
                     p (float): 概率值，依概率执行该操作
                 """
                 #if img_np.shape
-                c, h, w = img_np.shape
-                mask = np.random.choice((0, 1, 2), size=(1, h, w), p=[SNR, (1 - SNR) / 2., (1 - SNR) / 2.])
-                mask = np.repeat(mask, c, axis=0)     # 按channel 复制到 与img具有相同的shape
+                h, w = img_np.shape
+                mask = np.random.choice((0, 1, 2), size=(h, w), p=[SNR, (1 - SNR) / 2., (1 - SNR) / 2.])
                 img_np[mask == 1] = 1   # 盐噪声
                 img_np[mask == 2] = 0      # 椒噪声
                 return t.from_numpy(img_np)
@@ -107,7 +106,7 @@ class shuffle_task(object):
     def train(self,epoch=10000,verbose=True,imshow=True,print_epoch=100,
               imshow_epoch=1000,plot_mode='gray',stop_err=None,train_reg_gap=1,
              reg_start_epoch=0,eta=[None,None,None,None],model_save_path=None,
-             model_save=False,sample_num=1000,fid_name=None,gan_if=False,dis_step=1):
+             model_save=False,sample_num=1000,fid_name=None):
         self.pro_list = []
         for ite in range(epoch):
             if ite>reg_start_epoch:
@@ -116,7 +115,7 @@ class shuffle_task(object):
                 elif self.reg_mode == 'TV':
                     eta = [1e-3,None,None,None]
                 elif self.reg_mode == 'NN':
-                    eta = [None,None,None,1e-1]
+                    eta = [None,None,None,1]
                 elif self.reg_mode == 'eta':
                     eta = eta
                 else:
@@ -124,11 +123,9 @@ class shuffle_task(object):
             else:
                 eta = [None,None,None,None]
             if ite%train_reg_gap == 0:
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,
-                train_reg_if=True,sample_num=sample_num,fid_name=fid_name,gan_if=gan_if,dis_step=dis_step)
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=True,sample_num=sample_num,fid_name=fid_name)
             else:
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,
-                train_reg_if=False,sample_num=sample_num,fid_name=fid_name,gan_if=gan_if,dis_step=dis_step)
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=False,sample_num=sample_num,fid_name=fid_name)
             if ite % print_epoch==0 and verbose == True:
                 pprint.progress_bar(ite,epoch,self.model.loss_dict) # 格式化输出训练的loss，打印出训练进度条
             if ite % imshow_epoch==0 and imshow == True:
@@ -204,7 +201,7 @@ class shuffle_task(object):
             self.mask_in = mask_in.cuda(cuda_num)
         else:
             self.mask_in = mask_in
-        plot.gray_im(self.mask_in.cpu())
+        #plot.gray_im(self.mask_in.cpu())
         
     def init_pro(self,pro_mode='mask'):
         if pro_mode == 'svd':
@@ -228,7 +225,7 @@ class shuffle_task(object):
     def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],
                     input_mode='masked',std_b=1e-1,opt_type='Adam',
                     std_w=1e-3,act='relu',net_list=['dmf'],n_layers=3,
-                    scale_factor=2,gan_if=False):
+                    scale_factor=2):
         if model_name == 'dip':
             model = demo.dip(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         elif model_name == 'fp':
@@ -238,7 +235,7 @@ class shuffle_task(object):
         elif model_name == 'fc':
             model = demo.fc(para=para,reg=self.reg_list,img=self.pic,std_b=std_b)
         elif model_name == 'fourier' or model_name == 'garbor':
-            model = demo.mfn(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,type_name=model_name,gan_if=gan_if)
+            model = demo.mfn(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,type_name=model_name)
         elif model_name == 'fk':
             model = demo.fk(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         elif model_name == 'multi_net':
@@ -259,9 +256,4 @@ class shuffle_task(object):
         with open(path,'wb') as f:
             pkl.dump(data,f)
    
-
-
-
-
-
 
