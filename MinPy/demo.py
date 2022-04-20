@@ -41,6 +41,8 @@ class basic_demo(object):
             loss_fid = loss.gen_loss(self.net.net,self.dis.net,pic,mask_in)
         elif fid_name == 'dis':
             loss_fid = loss.dis_loss(self.net.net,self.dis.net,pic,mask_in)
+        elif fid_name == 'batch':
+            pass
         # TODO 2. fid_name == 'input'
         else:
             raise('Wrong fid_name=',fid_name)

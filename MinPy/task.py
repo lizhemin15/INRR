@@ -125,9 +125,9 @@ class shuffle_task(object):
                 eta = [None,None,None,None]
             if ite%train_reg_gap == 0:
                 # 4.传入input_x,input_y
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=True,sample_num=sample_num,fid_name=fid_name,net_lr=lr)
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=True,sample_num=sample_num,fid_name=fid_name)
             else:
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=False,sample_num=sample_num,fid_name=fid_name,net_lr=lr)
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=False,sample_num=sample_num,fid_name=fid_name)
             if ite % print_epoch==0 and verbose == True:
                 pprint.progress_bar(ite,epoch,self.model.loss_dict) # 格式化输出训练的loss，打印出训练进度条
             if ite % imshow_epoch==0 and imshow == True:
@@ -244,7 +244,7 @@ class shuffle_task(object):
             model = demo.multi_net(net_list=net_list,reg=self.reg_list,img=self.pic)
         elif model_name == 'msn':
             model = demo.msn(params=para,img=self.pic,reg=self.reg_list,n_layers=n_layers,scale_factor=scale_factor,mainnet_name='fourier')
-        elif model_name == 'bacon' or 'mulbacon':
+        elif model_name == 'bacon' or model_name == 'mulbacon':
             model = demo.bacon(params=para,img=self.pic,reg=self.reg_list,type_name=model_name)
         elif model_name == 'siren':
             model = demo.siren(para=para,reg=self.reg_list,img=self.pic)
