@@ -7,7 +7,7 @@ sys.path.append("..")
 from config import settings
 import torch.nn as nn
 import torch as t
-
+from toolbox import restoration
 import numpy as np
 
 
@@ -109,6 +109,16 @@ def dis_loss(gen,dis,pic,mask):
     pre_rand = gen(rand_xy)
     rand_input = t.cat((rand_xy,pre_rand),1)
     return dis(rand_input).mean()
+
+def denoise_mse(input,net):
+    m = np.sqrt(input.shape[0]).astype('int')
+    matrix = net(input).reshape(m,m)
+    matrix_np = matrix.detach().cpu().numpy()
+    restored_img = restoration.bm3d_denoise(matrix_np)
+    return mse(t.tensor(restored_img),matrix)
+
+
+
 
 
 # TODO 1. def input_loss(net,rel,mask=None,in_x,in_y):

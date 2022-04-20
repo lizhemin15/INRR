@@ -100,15 +100,29 @@ class hc_reg(object):
         # 在坐标范围内随机均匀采样 sample_num个点，计算两个网络在这些点上的MSE
         if self.sample_mode == 'random':
             input = t.rand(sample_num,2)*2-1
+            if cuda_if:
+                input = input.cuda(cuda_num)
+            return loss.mse(self.model(input),self.__M.net(input))
         elif self.sample_mode == 'uniform':
             x = np.linspace(-1,1,sample_num)
             y = np.linspace(-1,1,sample_num)
             xx,yy = np.meshgrid(x,y)
             xyz = np.stack([xx,yy],axis=2).astype('float32')
             input = t.tensor(xyz).reshape(-1,2)
-        if cuda_if:
-            input = input.cuda(cuda_num)
-        return loss.mse(self.model(input),self.__M.net(input))
+            if cuda_if:
+                input = input.cuda(cuda_num)
+            return loss.mse(self.model(input),self.__M.net(input))
+        elif self.sample_mode == 'denoising':
+            x = np.linspace(-1,1-2/sample_num,sample_num)
+            y = np.linspace(-1,1-2/sample_num,sample_num)
+            xx,yy = np.meshgrid(x,y)
+            xyz = np.stack([xx,yy],axis=2).astype('float32')
+            xyz += np.random.uniform(0,2/sample_num,(sample_num,sample_num,2))
+            input = t.tensor(xyz).reshape(-1,2)
+            if cuda_if:
+                input = input.cuda(cuda_num)
+            return loss.denoise_mse(input,self.__M.net)
+
 
 
         
