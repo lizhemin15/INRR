@@ -1,5 +1,6 @@
 import torch as t
 import torch.nn.functional as F
+from torch import nn
 import numpy as np
 class Linear(t.nn.Module):
     def __init__(self, input_features, output_features, bias=True):
@@ -68,14 +69,14 @@ class bias_net(t.nn.Module):
         else:
             print('Wrong act name:',act)
         for i in range(len(para)-1):
-            exec('self.fc'+str(i)+' = Linear(para['+str(i)+'],para['+str(i+1)+'])')
+            exec('self.fc'+str(i)+' = nn.Linear(para['+str(i)+'],para['+str(i+1)+'],bias=True)')
         if act == 'sin':
-            for m in self.modules():
+            for layer_i,m in enumerate(self.modules()):
                 if isinstance(m, Linear):
-                    m.weight.data = t.nn.init.uniform_(self.fc0.weight.data,-1 / self.in_features/30, 
-                                             1 / self.in_features/30)
-            self.fc0.weight.data = t.nn.init.uniform_(self.fc0.weight.data,-np.sqrt(6 / self.in_features), 
-                                             np.sqrt(6 / self.in_features))
+                    m.weight.data = t.nn.init.uniform_(m.weight.data,-1 / para[layer_i]/30, 
+                                             1 / para[layer_i]/30)
+            self.fc0.weight.data = t.nn.init.uniform_(self.fc0.weight.data,-np.sqrt(6 / para[0]), 
+                                             np.sqrt(6 / para[0]))
         else:
             for m in self.modules():
                 if isinstance(m, Linear):
@@ -89,31 +90,28 @@ class bias_net(t.nn.Module):
     def forward(self, x):
         act_func = self.act
         if self.act == t.sin:
-            x = act_func(self.fc0(30*x))
+            x = act_func(30*self.fc0(x))
         else:
             x = act_func(self.fc0(x))
         if self.bn_if:
             x = self.bn0(x)
         if self.act == t.sin:
-            x = act_func(self.fc1(30*x))
+            x = act_func(30*self.fc1(x))
         else:
             x = act_func(self.fc1(x))
         if self.bn_if:
             x = self.bn1(x)
         if self.act == t.sin:
-            x = act_func(self.fc2(30*x))
+            x = act_func(30*self.fc2(x))
         else:
             x = act_func(self.fc2(x))
         if self.bn_if:
             x = self.bn2(x)
         if self.act == t.sin:
-            x = act_func(self.fc3(30*x))
+            x = act_func(30*self.fc3(x))
         else:
             x = act_func(self.fc3(x))
         if self.bn_if:
             x = self.bn3(x)
-        if self.act == t.sin:
-            x = self.fc4(30*x)
-        else:
-            x = self.fc4(x)
+        x = self.fc4(x)
         return x

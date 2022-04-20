@@ -297,8 +297,8 @@ class inr(basic_net):
         # 给定m*n灰度图像，返回mn*2
         img_numpy = self.img.cpu().detach().numpy()
         self.m,self.n = img_numpy.shape[0],img_numpy.shape[1]
-        x = np.linspace(0,1,self.n)-0.5
-        y = np.linspace(0,1,self.m)-0.5
+        x = np.linspace(-1,1,self.n)
+        y = np.linspace(-1,1,self.m)
         xx,yy = np.meshgrid(x,y)
         self.xyz = np.stack([xx,yy],axis=2).astype('float32')
         self.input = t.tensor(self.xyz).reshape(-1,2)
@@ -332,8 +332,8 @@ class fp(inr):
         self.type = 'fp'
         params = [2,2000,1000,500,200,1]
         if act == 'sin':
-            hidden_size = img.shape[0]*img.shape[1]
-            params = [2,hidden_size,hidden_size,hidden_size,hidden_size,hidden_size,hidden_size,1]
+            hidden_size = img.shape[0]*img.shape[1]//1024
+            params = [2,hidden_size,hidden_size,hidden_size,hidden_size,1]
         self.net = self.init_para(params,std_b=std_b,act=act,std_w=std_w)
         self.img = img
         self.img2cor()
@@ -523,9 +523,24 @@ class dis_net(basic_net):
             model = discriminator()
         return model
 
+class siren(inr):
+    def __init__(self,params,img,lr=1e-3):
+        self.type = 'siren'
+        hidden_size = img.shape[0]*img.shape[1]//1024
+        in_features = params[0]
+        out_features = params[-1]
+        hidden_features = params[1]
+        hidden_layers = len(params)-2
+        self.net = self.init_para(in_features, hidden_features, hidden_layers, out_features)
+        self.img = img
+        self.img2cor()
+        self.data = self.init_data()
+        self.opt = self.init_opt(lr)
 
-
-
-
+    def init_para(self,in_features, hidden_features, hidden_layers, out_features):
+        model = Siren(in_features, hidden_features, hidden_layers, out_features)
+        if cuda_if:
+            model = model.cuda(cuda_num)
+        return model
 
 

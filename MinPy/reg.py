@@ -99,10 +99,10 @@ class hc_reg(object):
         # self.model 为加载的teacher结构
         # 在坐标范围内随机均匀采样 sample_num个点，计算两个网络在这些点上的MSE
         if self.sample_mode == 'random':
-            input = t.rand(sample_num,2)-0.5
+            input = t.rand(sample_num,2)*2-1
         elif self.sample_mode == 'uniform':
-            x = np.linspace(0,1,sample_num)-0.5
-            y = np.linspace(0,1,sample_num)-0.5
+            x = np.linspace(-1,1,sample_num)
+            y = np.linspace(-1,1,sample_num)
             xx,yy = np.meshgrid(x,y)
             xyz = np.stack([xx,yy],axis=2).astype('float32')
             input = t.tensor(xyz).reshape(-1,2)
