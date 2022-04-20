@@ -63,16 +63,17 @@ class shuffle_task(object):
                 """
                 #if img_np.shape
                 h, w = img_np.shape
+                img_new = img_np.copy()
                 mask = np.random.choice((0, 1, 2), size=(h, w), p=[SNR, (1 - SNR) / 2., (1 - SNR) / 2.])
-                img_np[mask == 1] = 1   # 盐噪声
-                img_np[mask == 2] = 0      # 椒噪声
-                return t.from_numpy(img_np)
+                img_new[mask == 1] = 1   # 盐噪声
+                img_new[mask == 2] = 0      # 椒噪声
+                return t.from_numpy(img_new)
 
             def get_poisson_noisy_image(img_np, lam):
                 """增加泊松噪声
                 """
                 shape=img_np.shape
-                lam=lam*np.ones((shape[0],1,1))
+                lam=lam*np.ones((shape[0],1))
                 img_noisy_np =np.clip(np.random.poisson(lam=lam*img_np, size=img_np.shape)/lam, 0, 1).astype(np.float32)
                 return t.from_numpy(img_noisy_np)
 
@@ -101,7 +102,7 @@ class shuffle_task(object):
             self.pic = self.pic.cuda(cuda_num)
             self.ori_pic = self.ori_pic.cuda(cuda_num)
 
-            
+
     
     def train(self,epoch=10000,verbose=True,imshow=True,print_epoch=100,
               imshow_epoch=1000,plot_mode='gray',stop_err=None,train_reg_gap=1,
@@ -123,6 +124,7 @@ class shuffle_task(object):
             else:
                 eta = [None,None,None,None]
             if ite%train_reg_gap == 0:
+                # 4.传入input_x,input_y
                 self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=True,sample_num=sample_num,fid_name=fid_name)
             else:
                 self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=False,sample_num=sample_num,fid_name=fid_name)

@@ -109,3 +109,6 @@ def dis_loss(gen,dis,pic,mask):
     pre_rand = gen(rand_xy)
     rand_input = t.cat((rand_xy,pre_rand),1)
     return dis(rand_input).mean()
+
+
+# TODO 1. def input_loss(net,rel,mask=None,in_x,in_y):

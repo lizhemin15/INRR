@@ -331,6 +331,9 @@ class fp(inr):
     def __init__(self,params,img,lr=1e-3,std_b=1e-3,act='relu',std_w=1e-3):
         self.type = 'fp'
         params = [2,2000,1000,500,200,1]
+        if act == 'sin':
+            hidden_size = img.shape[0]*img.shape[1]
+            params = [2,hidden_size,hidden_size,hidden_size,hidden_size,hidden_size,hidden_size,1]
         self.net = self.init_para(params,std_b=std_b,act=act,std_w=std_w)
         self.img = img
         self.img2cor()

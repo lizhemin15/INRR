@@ -1,5 +1,6 @@
 import torch as t
 import torch.nn.functional as F
+import numpy as np
 class Linear(t.nn.Module):
     def __init__(self, input_features, output_features, bias=True):
         super(Linear, self).__init__()
@@ -68,28 +69,51 @@ class bias_net(t.nn.Module):
             print('Wrong act name:',act)
         for i in range(len(para)-1):
             exec('self.fc'+str(i)+' = Linear(para['+str(i)+'],para['+str(i+1)+'])')
-        for m in self.modules():
-            if isinstance(m, Linear):
-                m.weight.data = t.nn.init.kaiming_normal_(m.weight.data)
-                m.bias.data = t.nn.init.constant_(m.bias, 0)
-        self.fc0.weight.data = t.nn.init.normal_(self.fc0.weight.data,mean=0,std=std_w)
-        self.fc0.bias.data = t.nn.init.normal_(self.fc0.bias.data,mean=0,std=std_b)
+        if act == 'sin':
+            for m in self.modules():
+                if isinstance(m, Linear):
+                    m.weight.data = t.nn.init.uniform_(self.fc0.weight.data,-1 / self.in_features/30, 
+                                             1 / self.in_features/30)
+            self.fc0.weight.data = t.nn.init.uniform_(self.fc0.weight.data,-np.sqrt(6 / self.in_features), 
+                                             np.sqrt(6 / self.in_features))
+        else:
+            for m in self.modules():
+                if isinstance(m, Linear):
+                    m.weight.data = t.nn.init.kaiming_normal_(m.weight.data)
+                    m.bias.data = t.nn.init.constant_(m.bias, 0)
+            self.fc0.weight.data = t.nn.init.normal_(self.fc0.weight.data,mean=0,std=std_w)
+            self.fc0.bias.data = t.nn.init.normal_(self.fc0.bias.data,mean=0,std=std_b)
         for i in range(len(para)-1):
             exec('self.bn'+str(i)+' = t.nn.BatchNorm1d(para['+str(i+1)+'])')
 
     def forward(self, x):
         act_func = self.act
-        x = act_func(self.fc0(x))
+        if self.act == t.sin:
+            x = act_func(self.fc0(30*x))
+        else:
+            x = act_func(self.fc0(x))
         if self.bn_if:
             x = self.bn0(x)
-        x = act_func(self.fc1(x))
+        if self.act == t.sin:
+            x = act_func(self.fc1(30*x))
+        else:
+            x = act_func(self.fc1(x))
         if self.bn_if:
             x = self.bn1(x)
-        x = act_func(self.fc2(x))
+        if self.act == t.sin:
+            x = act_func(self.fc2(30*x))
+        else:
+            x = act_func(self.fc2(x))
         if self.bn_if:
             x = self.bn2(x)
-        x = act_func(self.fc3(x))
+        if self.act == t.sin:
+            x = act_func(self.fc3(30*x))
+        else:
+            x = act_func(self.fc3(x))
         if self.bn_if:
             x = self.bn3(x)
-        x = self.fc4(x)
+        if self.act == t.sin:
+            x = self.fc4(30*x)
+        else:
+            x = self.fc4(x)
         return x

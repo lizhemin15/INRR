@@ -41,6 +41,7 @@ class basic_demo(object):
             loss_fid = loss.gen_loss(self.net.net,self.dis.net,pic,mask_in)
         elif fid_name == 'dis':
             loss_fid = loss.dis_loss(self.net.net,self.dis.net,pic,mask_in)
+        # TODO 2. fid_name == 'input'
         else:
             raise('Wrong fid_name=',fid_name)
         loss_reg_list = []
@@ -87,6 +88,7 @@ class basic_demo(object):
         # loss_all = mu*loss_fid +  eta*loss_reg 
         # (Specially, when we choose mu=1, eta=0, We train the mdoel without regularizer)
         # If we set mu=0, this means we only train the regularizer term 
+        # TODO 3. 在每一步定义需要input_x,input_y，放到Self里面
         if gan_if:
             loss_gen = self.get_loss('gen',pic,mask_in,eta,mu,sample_num=sample_num)
             loss_gen.backward(retain_graph=True)
