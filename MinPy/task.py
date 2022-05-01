@@ -22,7 +22,7 @@ class shuffle_task(object):
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',
                  opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,
                  act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_load_path=None,
-                 task_type='completion',noise_dict=None,sample_mode='random'):
+                 task_type='completion',noise_dict=None,sample_mode='random',att_para=None):
         self.m,self.n = m,n
         self.task_type = task_type
         self.noise_dict = noise_dict
@@ -39,7 +39,7 @@ class shuffle_task(object):
                         input_mode=input_mode,std_b=std_b,
                         opt_type=opt_type,std_w=std_w,act=act,
                         net_list=net_list,n_layers=n_layers,
-                        scale_factor=scale_factor)
+                        scale_factor=scale_factor,att_para=att_para)
         self.reg_mode = reg_mode
         self.model_name = model_name
         
@@ -227,7 +227,7 @@ class shuffle_task(object):
     def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],
                     input_mode='masked',std_b=1e-1,opt_type='Adam',
                     std_w=1e-3,act='relu',net_list=['dmf'],n_layers=3,
-                    scale_factor=2):
+                    scale_factor=2,att_para=None):
         if model_name == 'dip':
             model = demo.dip(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         elif model_name == 'fp':
@@ -248,6 +248,14 @@ class shuffle_task(object):
             model = demo.bacon(params=para,img=self.pic,reg=self.reg_list,type_name=model_name)
         elif model_name == 'siren':
             model = demo.siren(para=para,reg=self.reg_list,img=self.pic)
+        elif model_name == 'attnet':
+            dim_k = att_para['dim_k']
+            x_train,x_test = att_para['feature_map'](self.ori_pic,self.mask_in,att_para['map_mode'])
+            def get_data(img,mask):
+                y_train = img[mask==1].reshpe(1,-1,1)
+                return y_train
+            y_train = get_data(self.ori_pic,self.mask_in)
+            model = demo.att(x_train=x_train,y_train=y_train,x_test=x_test,dim_k=dim_k,mask=self.mask_in,reg=self.reg_list)
         self.model = model
     
     def plot(self,epoch):

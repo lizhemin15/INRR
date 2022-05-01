@@ -544,3 +544,41 @@ class siren(inr):
         return model
 
 
+class attnet(basic_net):
+    def __init__(self,lr=1e-3,x_train=None,y_train=None,x_test=None,dim_k=10,mask=None):
+        # x_train shape: batch_size * seq_len * input_dim
+        # y_train shape: batch_size * seq_len * output_dim
+        self.type = 'attnet'
+        self.x_train = x_train
+        self.x_test = x_test
+        self.y_train = y_train
+        self.mask = mask
+        self.dim_k = dim_k
+        self.net = self.init_para()
+        self.opt = self.init_opt(lr)
+        
+    def init_para(self):
+        input_dim = self.x_train.shape[2]
+        model = att_net(input_dim,self.dim_k)
+        if cuda_if:
+            model = model.cuda(cuda_num)
+        return model
+    
+    def reshape_data(self,vec,mode='train'):
+        vec = vec.reshape((vec.shape[1]))
+        data = t.zeros(self.mask.shape)
+        if mode == 'train':
+            data[self.mask==1] = vec
+        elif mode == 'test':
+            data[self.mask==0] = vec
+        return data
+
+    def init_data(self):
+        # Initial data
+        atten_train = self.net(self.x_train,self.x_train)
+        output_train = t.bmm(atten_train,self.y_train)
+        atten_test = self.net(self.x_test,self.x_train)
+        output_test = t.bmm(atten_test,self.y_train)
+        matrix_train = self.reshape_data(output_train,'train')
+        matrix_test = self.reshape_data(output_test,'test')
+        return matrix_train+matrix_test

@@ -43,7 +43,6 @@ class basic_demo(object):
             loss_fid = loss.dis_loss(self.net.net,self.dis.net,pic,mask_in)
         elif fid_name == 'batch':
             pass
-        # TODO 2. fid_name == 'input'
         else:
             raise('Wrong fid_name=',fid_name)
         loss_reg_list = []
@@ -90,7 +89,6 @@ class basic_demo(object):
         # loss_all = mu*loss_fid +  eta*loss_reg 
         # (Specially, when we choose mu=1, eta=0, We train the mdoel without regularizer)
         # If we set mu=0, this means we only train the regularizer term 
-        # TODO 3. 在每一步定义需要input_x,input_y，放到Self里面
         if gan_if:
             loss_gen = self.get_loss('gen',pic,mask_in,eta,mu,sample_num=sample_num)
             loss_gen.backward(retain_graph=True)
@@ -311,7 +309,13 @@ class siren(basic_demo):
             self.loss_dict['loss_'+reg_now.type] = []
 
 
-
+class att(basic_demo):
+    def __init__(self,x_train=None,y_train=None,x_test=None,dim_k=10,mask=None,reg=None):
+        self.net = net.att(lr=1e-3,x_train=x_train,y_train=y_train,x_test=x_test,dim_k=dim_k,mask=mask)
+        self.reg = reg
+        self.loss_dict={'loss_fid':[],'loss_all':[],'nmae_test':[]}
+        for reg_now in self.reg:
+            self.loss_dict['loss_'+reg_now.type] = []
 
 
 

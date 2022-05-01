@@ -120,5 +120,3 @@ def denoise_mse(input,net):
 
 
 
-
-# TODO 1. def input_loss(net,rel,mask=None,in_x,in_y):

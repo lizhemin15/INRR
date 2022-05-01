@@ -1,4 +1,3 @@
-# TODO translate skimage.restoration into the tensor version
 import bm3d
 from skimage.restoration import estimate_sigma
 import numpy as np
