@@ -555,6 +555,7 @@ class attnet(basic_net):
         self.mask = mask
         self.dim_k = dim_k
         self.net = self.init_para()
+        self.data = self.init_data()
         self.opt = self.init_opt(lr)
         
     def init_para(self):
@@ -566,7 +567,7 @@ class attnet(basic_net):
     
     def reshape_data(self,vec,mode='train'):
         vec = vec.reshape((vec.shape[1]))
-        data = t.zeros(self.mask.shape)
+        data = t.zeros(self.mask.shape).to(vec.device)
         if mode == 'train':
             data[self.mask==1] = vec
         elif mode == 'test':

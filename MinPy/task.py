@@ -252,7 +252,7 @@ class shuffle_task(object):
             dim_k = att_para['dim_k']
             x_train,x_test = att_para['feature_map'](self.ori_pic,self.mask_in,att_para['map_mode'])
             def get_data(img,mask):
-                y_train = img[mask==1].reshpe(1,-1,1)
+                y_train = img[mask==1].reshape(1,-1,1)
                 return y_train
             y_train = get_data(self.ori_pic,self.mask_in)
             model = demo.att(x_train=x_train,y_train=y_train,x_test=x_test,dim_k=dim_k,mask=self.mask_in,reg=self.reg_list)
