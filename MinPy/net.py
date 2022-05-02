@@ -1,4 +1,5 @@
 import os
+from re import S
 import sys
 current_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(current_dir)
@@ -545,7 +546,7 @@ class siren(inr):
 
 
 class attnet(basic_net):
-    def __init__(self,lr=1e-3,x_train=None,y_train=None,x_test=None,dim_k=10,mask=None):
+    def __init__(self,lr=1e-3,x_train=None,y_train=None,x_test=None,dim_k=10,mask=None,performer_if=True):
         # x_train shape: batch_size * seq_len * input_dim
         # y_train shape: batch_size * seq_len * output_dim
         self.type = 'attnet'
@@ -553,6 +554,7 @@ class attnet(basic_net):
         self.x_test = x_test
         self.y_train = y_train
         self.mask = mask
+        self.performer_if = performer_if
         self.dim_k = dim_k
         self.net = self.init_para()
         self.data = self.init_data()
@@ -560,7 +562,11 @@ class attnet(basic_net):
         
     def init_para(self):
         input_dim = self.x_train.shape[2]
-        model = att_net(input_dim,self.dim_k)
+        if self.performer_if:
+            from performer_pytorch import SelfAttention
+            model = SelfAttention(dim=self.x_train.shape[2],heads=1,causal=False)
+        else:
+            model = att_net(input_dim,self.dim_k)
         if cuda_if:
             model = model.cuda(cuda_num)
         return model

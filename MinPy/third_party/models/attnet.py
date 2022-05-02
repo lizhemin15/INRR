@@ -19,6 +19,5 @@ class att_net(t.nn.Module):
         Q = self.q(qx) # Q: batch_size * seq_q_len * dim_k
         K = self.k(kx) # K: batch_size * seq_k_len * dim_k
         atten = nn.Softmax(dim=-1)(t.bmm(Q,K.permute(0,2,1))* self._norm_fact) # Q * K.T() # batch_size * seq_q_len * seq_k_len
-        # TODO 1. 多头
-        # TODO 2. Performer random feature加速计算
+        # TODO Performer random feature加速计算
         return atten
