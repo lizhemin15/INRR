@@ -16,33 +16,53 @@ from toolbox.projection import svd_pro,mask_pro
 from toolbox import dataloader,plot,pprint
 import reg,demo,loss
 
-class shuffle_task(object):
-    def __init__(self,m=240,n=240,data_path=None,mask_mode='random',random_rate=0.5,
-                 mask_path=None,given_mask=None,para=[2,2000,1000,500,200,1],input_mode='masked',
-                std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',
-                 opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,
-                 act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_load_path=None,
-                 task_type='completion',noise_dict=None,sample_mode='random',att_para=None):
-        self.m,self.n = m,n
-        self.task_type = task_type
-        self.noise_dict = noise_dict
-        self.init_data(m=m,n=n,data_path=data_path,shuffle_mode=shuffle_mode)
-        self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,given_mask=given_mask,patch_num=patch_num)
-        if verbose:
-            if data_path != None:
-                plot.gray_im(self.pic.cpu()*self.mask_in.cpu())
+
+class basic_task(object):
+    def __init__(self):
+        pass
+
+    def init_mask(self,mask_mode='random',random_rate=0.5,mask_path=None,given_mask=None,patch_num=3):
+        if mask_mode == 'random':
+            transformer = dataloader.data_transform(z=self.pic,return_type='tensor')
+            mask_in = transformer.get_drop_mask(rate=random_rate) #rate为丢失率
+            mask_in[mask_in<1] = 0
+            if cuda_if:
+                mask_in = mask_in.cuda(cuda_num)
+        elif mask_mode == 'patch':
+            if cuda_if:
+                mask_in = t.ones((self.m,self.n)).cuda(cuda_num)
             else:
-                plot.red_im(self.pic.cpu()*self.mask_in.cpu())
-        self.init_pro(pro_mode=pro_mode)
-        self.init_reg(m,n,model_path=model_load_path,sample_mode=sample_mode)
-        self.init_model(model_name=model_name,para=para,
-                        input_mode=input_mode,std_b=std_b,
-                        opt_type=opt_type,std_w=std_w,act=act,
-                        net_list=net_list,n_layers=n_layers,
-                        scale_factor=scale_factor,att_para=att_para)
-        self.reg_mode = reg_mode
-        self.model_name = model_name
-        
+                mask_in = t.ones((self.m,self.n))
+            mask_in[70:100,150:190] = 0
+            mask_in[200:230,200:230] = 0
+        elif mask_mode == 'fixed':
+            mask_in = dataloader.get_data(height=self.m,width=self.n,pic_name=mask_path)
+            mask_in[mask_in<1] = 0
+        elif mask_mode == 'patch_num':
+            if cuda_if:
+                mask_in = t.ones((self.m,self.n)).cuda(cuda_num)
+            else:
+                mask_in = t.ones((self.m,self.n))
+            pixel_m = self.m//patch_num
+            pixel_n = self.n//patch_num
+            for i in range(self.m):
+                for j in range(self.n):
+                    if (i%pixel_m-pixel_m/2.0)*(j%pixel_n-pixel_n/2.0)<0:
+                        mask_in[i,j] = 0
+        elif mask_mode == 'down_sample':
+            if cuda_if:
+                mask_in = t.zeros((self.m,self.n)).cuda(cuda_num)
+            else:
+                mask_in = t.zeros((self.m,self.n))
+            mask_in[::patch_num,::patch_num] = 1
+        elif mask_mode == 'given':
+            mask_in = given_mask
+        if cuda_if:
+            self.mask_in = mask_in.cuda(cuda_num)
+        else:
+            self.mask_in = mask_in
+        #plot.gray_im(self.mask_in.cpu())
+
     def init_data(self,m=240,n=240,data_path=None,shuffle_mode='I'):
         ori_pic = dataloader.get_data(height=m,width=n,pic_name=data_path)
         def add_noise(pic,noise_dict):
@@ -101,6 +121,34 @@ class shuffle_task(object):
         if cuda_if:
             self.pic = self.pic.cuda(cuda_num)
             self.ori_pic = self.ori_pic.cuda(cuda_num)
+
+class shuffle_task(basic_task):
+    def __init__(self,m=240,n=240,data_path=None,mask_mode='random',random_rate=0.5,
+                 mask_path=None,given_mask=None,para=[2,2000,1000,500,200,1],input_mode='masked',
+                std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',
+                 opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,
+                 act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_load_path=None,
+                 task_type='completion',noise_dict=None,sample_mode='random',att_para=None):
+        self.m,self.n = m,n
+        self.task_type = task_type
+        self.noise_dict = noise_dict
+        self.init_data(m=m,n=n,data_path=data_path,shuffle_mode=shuffle_mode)
+        self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,given_mask=given_mask,patch_num=patch_num)
+        if verbose:
+            if data_path != None:
+                plot.gray_im(self.pic.cpu()*self.mask_in.cpu())
+            else:
+                plot.red_im(self.pic.cpu()*self.mask_in.cpu())
+        self.init_pro(pro_mode=pro_mode)
+        self.init_reg(m,n,model_path=model_load_path,sample_mode=sample_mode)
+        self.init_model(model_name=model_name,para=para,
+                        input_mode=input_mode,std_b=std_b,
+                        opt_type=opt_type,std_w=std_w,act=act,
+                        net_list=net_list,n_layers=n_layers,
+                        scale_factor=scale_factor,att_para=att_para)
+        self.reg_mode = reg_mode
+        self.model_name = model_name
+        
 
 
     
@@ -163,47 +211,7 @@ class shuffle_task(object):
         if model_save == True:
             t.save(self.model.net.net,model_save_path)
 
-    def init_mask(self,mask_mode='random',random_rate=0.5,mask_path=None,given_mask=None,patch_num=3):
-        if mask_mode == 'random':
-            transformer = dataloader.data_transform(z=self.pic,return_type='tensor')
-            mask_in = transformer.get_drop_mask(rate=random_rate) #rate为丢失率
-            mask_in[mask_in<1] = 0
-            if cuda_if:
-                mask_in = mask_in.cuda(cuda_num)
-        elif mask_mode == 'patch':
-            if cuda_if:
-                mask_in = t.ones((self.m,self.n)).cuda(cuda_num)
-            else:
-                mask_in = t.ones((self.m,self.n))
-            mask_in[70:100,150:190] = 0
-            mask_in[200:230,200:230] = 0
-        elif mask_mode == 'fixed':
-            mask_in = dataloader.get_data(height=self.m,width=self.n,pic_name=mask_path)
-            mask_in[mask_in<1] = 0
-        elif mask_mode == 'patch_num':
-            if cuda_if:
-                mask_in = t.ones((self.m,self.n)).cuda(cuda_num)
-            else:
-                mask_in = t.ones((self.m,self.n))
-            pixel_m = self.m//patch_num
-            pixel_n = self.n//patch_num
-            for i in range(self.m):
-                for j in range(self.n):
-                    if (i%pixel_m-pixel_m/2.0)*(j%pixel_n-pixel_n/2.0)<0:
-                        mask_in[i,j] = 0
-        elif mask_mode == 'down_sample':
-            if cuda_if:
-                mask_in = t.zeros((self.m,self.n)).cuda(cuda_num)
-            else:
-                mask_in = t.zeros((self.m,self.n))
-            mask_in[::patch_num,::patch_num] = 1
-        elif mask_mode == 'given':
-            mask_in = given_mask
-        if cuda_if:
-            self.mask_in = mask_in.cuda(cuda_num)
-        else:
-            self.mask_in = mask_in
-        #plot.gray_im(self.mask_in.cpu())
+
         
     def init_pro(self,pro_mode='mask'):
         if pro_mode == 'svd':
@@ -268,4 +276,81 @@ class shuffle_task(object):
         with open(path,'wb') as f:
             pkl.dump(data,f)
    
+class kernel_task(basic_task):
+    def __init__(self,m=240,n=240,random_rate=0.5,mask_mode='random',
+                data_path=None,kernel='gaussian',sigma=1,mask_path=None,
+                patch_num=10,feature_type='coordinate'):
+        self.m,self.n = m,n
+        self.init_data(m=m,n=n,data_path=data_path)
+        self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,patch_num=patch_num)
+        self.transformed_data(feature_type)
+        self.init_kernel(kernel,sigma)
+
+    def transformed_data(self,feature_type):
+        if feature_type == 'coordinate' or feature_type == 'random_feature':
+            feature_dim = 2
+            m,n = self.pic.shape[0],self.pic.shape[1]
+            x = np.linspace(-1,1,n)
+            y = np.linspace(-1,1,m)
+            xx,yy = np.meshgrid(x,y)
+            xyz = np.stack([xx,yy],axis=2).astype('float32')
+            input = t.tensor(xyz).reshape(-1,2)
+            mask_reshape = self.mask_in.reshape(-1)
+            N_train = input[:,0][mask_reshape==1].shape[0]
+            x_train = t.zeros((N_train,feature_dim))
+            x_test = t.zeros((m*n-N_train,feature_dim))
+            for i in range(input.shape[1]):
+                x_train[:,i] = input[:,i][mask_reshape==1].reshape(-1)
+                x_test[:,i] = input[:,i][mask_reshape==0].reshape(-1)
+        if feature_type == 'random_feature':
+            def random_feature(x,f_dim=1000,sigma=1):
+                B = t.randn(x.shape[1],f_dim)*sigma
+                x = t.cat((t.cos(x@B),t.sin(x@B)),2)
+                return x
+            x_train = random_feature(x_train)
+            x_test = random_feature(x_test)
+        if cuda_if:
+            x_train = x_train.cuda(cuda_num)
+            x_test = x_test.cuda(cuda_num)
+        self.x_train,self.x_test = x_train,x_test
+
+        y_train = self.pic[self.mask_in==1].reshape((-1,1))
+        if cuda_if:
+            self.y_train = y_train.cuda(cuda_num)
+        else:
+            self.y_train = y_train
+
+
+    def init_kernel(self,kernel='gaussian',sigma=1,mode='train',x=None):
+        def gaus_func(x,y,sigma):
+            return t.exp(-t.norm(x-y)/sigma**2/2)/(np.sqrt(2*np.pi)*sigma)
+
+        if kernel == 'gaussian':
+            kernel_func = gaus_func
+        if mode == 'train':
+            self.kernel = t.zeros((self.x_train.shape[0],self.x_train.shape[0]))
+            for i in range(self.x_train.shape[0]):
+                for j in range(self.x_train.shape[0]):
+                    self.kernel[i,j] = kernel_func(self.x_train[i],self.x_train[j],sigma)
+            if cuda_if:
+                self.kernel = self.kernel.cuda(cuda_num)
+        else:
+            kernel_test = t.zeros((1,self.x_train.shape[0]))
+            for i in range(self.x_train.shape[0]):
+                self.kernel_test[i] = kernel_func(x,self.x_train[j],sigma)
+            if cuda_if:
+                kernel_test = kernel_test.cuda(cuda_num)
+            return kernel_test
+
+    def predict(self,predict_mode='test',x_test=None,kernel='gaussian',sigma=1):
+        if predict_mode == 'test':
+            x_test = self.x_test
+        elif predict_mode == 'train':
+            x_test = self.x_train
+        k_test = self.init_kernel(kernel=kernel,sigma=sigma,x=x_test,mode='test')
+        y_pre = k_test@t.inverse(self.kernel)@self.y_train
+        return y_pre
+
+    
+
 

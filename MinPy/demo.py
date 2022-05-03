@@ -310,7 +310,7 @@ class siren(basic_demo):
 
 
 class att(basic_demo):
-    def __init__(self,x_train=None,y_train=None,x_test=None,dim_k=10,mask=None,reg=None,performer_if=True):
+    def __init__(self,x_train=None,y_train=None,x_test=None,dim_k=10,mask=None,reg=None,performer_if=False):
         self.net = net.attnet(lr=1e-3,x_train=x_train,y_train=y_train,x_test=x_test,dim_k=dim_k,mask=mask,performer_if=performer_if)
         self.reg = reg
         self.loss_dict={'loss_fid':[],'loss_all':[],'nmae_test':[]}
