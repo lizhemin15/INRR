@@ -279,8 +279,9 @@ class shuffle_task(basic_task):
 class kernel_task(basic_task):
     def __init__(self,m=240,n=240,random_rate=0.5,mask_mode='random',
                 data_path=None,kernel='gaussian',sigma=1,mask_path=None,
-                patch_num=10,feature_type='coordinate'):
+                patch_num=10,feature_type='coordinate',task_type='completion'):
         self.m,self.n = m,n
+        self.task_type = task_type
         self.init_data(m=m,n=n,data_path=data_path)
         self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,patch_num=patch_num)
         self.transformed_data(feature_type)
@@ -305,7 +306,7 @@ class kernel_task(basic_task):
         if feature_type == 'random_feature':
             def random_feature(x,f_dim=1000,sigma=1):
                 B = t.randn(x.shape[1],f_dim)*sigma
-                x = t.cat((t.cos(x@B),t.sin(x@B)),2)
+                x = t.cat((t.cos(x@B),t.sin(x@B)),1)
                 return x
             x_train = random_feature(x_train)
             x_test = random_feature(x_test)
@@ -323,7 +324,7 @@ class kernel_task(basic_task):
 
     def init_kernel(self,kernel='gaussian',sigma=1,mode='train',x=None):
         def gaus_func(x,y,sigma):
-            return t.exp(-t.norm(x-y)/sigma**2/2)/(np.sqrt(2*np.pi)*sigma)
+            return t.exp(-t.sum((x-y)**2)/sigma**2/2)/(np.sqrt(2*np.pi)*sigma)
 
         if kernel == 'gaussian':
             kernel_func = gaus_func
@@ -331,13 +332,14 @@ class kernel_task(basic_task):
             self.kernel = t.zeros((self.x_train.shape[0],self.x_train.shape[0]))
             for i in range(self.x_train.shape[0]):
                 for j in range(self.x_train.shape[0]):
-                    self.kernel[i,j] = kernel_func(self.x_train[i],self.x_train[j],sigma)
+                    self.kernel[i,j] = kernel_func(self.x_train[i,:],self.x_train[j,:],sigma)
             if cuda_if:
                 self.kernel = self.kernel.cuda(cuda_num)
         else:
-            kernel_test = t.zeros((1,self.x_train.shape[0]))
-            for i in range(self.x_train.shape[0]):
-                self.kernel_test[i] = kernel_func(x,self.x_train[j],sigma)
+            kernel_test = t.zeros((x.shape[0],self.x_train.shape[0]))
+            for i in range(x.shape[0]):
+                for j in range(self.x_train.shape[0]):
+                    kernel_test[i,j] = kernel_func(x[i,:],self.x_train[j,:],sigma)
             if cuda_if:
                 kernel_test = kernel_test.cuda(cuda_num)
             return kernel_test
@@ -347,9 +349,23 @@ class kernel_task(basic_task):
             x_test = self.x_test
         elif predict_mode == 'train':
             x_test = self.x_train
+        elif predict_mode == 'all':
+            if self.x_test.shape[0] != 0:
+                x_test = t.cat((self.x_train,self.x_test),0)
+            else:
+                x_test = self.x_train
+
         k_test = self.init_kernel(kernel=kernel,sigma=sigma,x=x_test,mode='test')
         y_pre = k_test@t.inverse(self.kernel)@self.y_train
-        return y_pre
+        if predict_mode == 'all':
+            img = t.zeros((self.m,self.n)).to(self.mask_in)
+            img = img.to(t.float32)
+            train_i = t.sum(self.mask_in).detach().cpu().numpy().astype('int')
+            img[self.mask_in==1] = y_pre[:train_i].reshape(-1)
+            img[self.mask_in==0] = y_pre[train_i:].reshape(-1)
+            return img
+        else:
+            return y_pre
 
     
 
