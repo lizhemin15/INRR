@@ -279,13 +279,33 @@ class shuffle_task(basic_task):
 class kernel_task(basic_task):
     def __init__(self,m=240,n=240,random_rate=0.5,mask_mode='random',
                 data_path=None,kernel='gaussian',sigma=1,mask_path=None,
-                patch_num=10,feature_type='coordinate',task_type='completion'):
+                patch_num=10,feature_type='coordinate',task_type='completion',
+                cal_mode='accuracy'):
         self.m,self.n = m,n
         self.task_type = task_type
         self.init_data(m=m,n=n,data_path=data_path)
         self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,patch_num=patch_num)
-        self.transformed_data(feature_type)
-        self.init_kernel(kernel,sigma)
+        if isinstance(feature_type,list):
+            self.x_train,self.x_test,self.y_train = self.combination_data(feature_type)
+        else:
+            self.x_train,self.x_test,self.y_train = self.transformed_data(feature_type)
+        if cal_mode == 'accuracy':
+            self.init_kernel(kernel,sigma)
+        else:
+            self.cal_mode = cal_mode
+
+
+    def combination_data(self,feature_list):
+        for i,feature in enumerate(feature_list):
+            x_train,x_test,y_train = self.transformed_data(feature)
+            if i == 0:
+                x_train_all = x_train
+                x_test_all = x_test
+            else:
+                x_train_all = t.cat((x_train_all,x_train),axis=1)
+                x_test_all = t.cat((x_test_all,x_test),axis=1)
+        return x_train_all,x_test_all,y_train
+
 
     def transformed_data(self,feature_type):
         if feature_type == 'coordinate' or feature_type == 'random_feature':
@@ -310,41 +330,67 @@ class kernel_task(basic_task):
                 return x
             x_train = random_feature(x_train)
             x_test = random_feature(x_test)
+        if feature_type == 'patch':
+            # TODO 也分为两个模式，预填充与不填充版本
+            pass
+        if feature_type == 'exchangeable':
+            # TODO 预填充模式下，整行整列作为特征
+            M_row = t.nn.functional.normalize(self.mask_in.to(t.float32),p=1,dim=1)
+            M_col = t.nn.functional.normalize(self.mask_in.to(t.float32),p=1,dim=0)
+            if cuda_if:
+                row_mean = t.sum(self.pic*M_row,axis=1).reshape(-1,1)@t.ones((1,self.n)).cuda(cuda_num)
+                col_mean = t.ones((self.m,1)).cuda(cuda_num)@t.sum(self.pic*M_col,axis=1).reshape(1,-1)
+            else:
+                row_mean = t.sum(self.pic*M_row,axis=1).reshape(-1,1)@t.ones((1,self.n))
+                col_mean = t.ones((self.m,1))@t.sum(self.pic*M_col,axis=1).reshape(1,-1)
+            N_train = int(t.sum(self.mask_in).item())
+            x_train = t.zeros((N_train,2))
+            x_test = t.zeros((self.m*self.n-N_train,2))
+            x_train[:,0] = row_mean[self.mask_in==1].reshape(-1)
+            x_train[:,1] = col_mean[self.mask_in==1].reshape(-1)
+            x_test[:,0] = row_mean[self.mask_in==0].reshape(-1)
+            x_test[:,1] = col_mean[self.mask_in==0].reshape(-1)
+
         if cuda_if:
             x_train = x_train.cuda(cuda_num)
             x_test = x_test.cuda(cuda_num)
-        self.x_train,self.x_test = x_train,x_test
-
+        # TODO weighted feature
         y_train = self.pic[self.mask_in==1].reshape((-1,1))
         if cuda_if:
-            self.y_train = y_train.cuda(cuda_num)
-        else:
-            self.y_train = y_train
+            y_train = y_train.cuda(cuda_num)
+        return x_train,x_test,y_train
 
 
     def init_kernel(self,kernel='gaussian',sigma=1,mode='train',x=None):
         def gaus_func(x,y,sigma):
-            return t.exp(-t.sum((x-y)**2)/sigma**2/2)/(np.sqrt(2*np.pi)*sigma)
+            x2 = t.norm(x,dim=1)**2
+            if cuda_if:
+                x2 = x2.reshape(-1,1)@t.ones((1,y.shape[0])).cuda(cuda_num)
+            else:
+                x2 = x2.reshape(-1,1)@t.ones((1,y.shape[0]))
+            y2 = t.norm(y,dim=1)**2
+            if cuda_if:
+                y2 = t.ones((x.shape[0],1)).cuda(cuda_num)@y2.reshape(1,-1)
+            else:
+                y2 = t.ones((x.shape[0],1))@y2.reshape(1,-1)
+            xy = x@y.T
+            result = t.exp(-(x2+y2-2*xy)/sigma)
+            
+            return result
 
         if kernel == 'gaussian':
             kernel_func = gaus_func
         if mode == 'train':
-            self.kernel = t.zeros((self.x_train.shape[0],self.x_train.shape[0]))
-            for i in range(self.x_train.shape[0]):
-                for j in range(self.x_train.shape[0]):
-                    self.kernel[i,j] = kernel_func(self.x_train[i,:],self.x_train[j,:],sigma)
+            self.kernel = kernel_func(self.x_train,self.x_train,sigma)
             if cuda_if:
                 self.kernel = self.kernel.cuda(cuda_num)
         else:
-            kernel_test = t.zeros((x.shape[0],self.x_train.shape[0]))
-            for i in range(x.shape[0]):
-                for j in range(self.x_train.shape[0]):
-                    kernel_test[i,j] = kernel_func(x[i,:],self.x_train[j,:],sigma)
+            kernel_test = kernel_func(x,self.x_train,sigma)
             if cuda_if:
                 kernel_test = kernel_test.cuda(cuda_num)
             return kernel_test
 
-    def predict(self,predict_mode='test',x_test=None,kernel='gaussian',sigma=1):
+    def predict(self,predict_mode='test',x_test=None,kernel='gaussian',sigma=1,batch_if=False,batch_num_all=10):
         if predict_mode == 'test':
             x_test = self.x_test
         elif predict_mode == 'train':
@@ -355,8 +401,22 @@ class kernel_task(basic_task):
             else:
                 x_test = self.x_train
 
-        k_test = self.init_kernel(kernel=kernel,sigma=sigma,x=x_test,mode='test')
-        y_pre = k_test@t.inverse(self.kernel)@self.y_train
+        if not batch_if:
+            k_test = self.init_kernel(kernel=kernel,sigma=sigma,x=x_test,mode='test')
+        else:
+            k_test = t.ones((x_test.shape[0],self.x_train.shape[0]))
+            if cuda_if:
+                k_test = k_test.cuda(cuda_num)
+            batch_size = x_test.shape[0]//batch_num_all
+            for batch_num in range(batch_num_all):
+                k_test[batch_num*batch_size:(batch_num+1)*batch_size,:] = self.init_kernel(kernel=kernel,sigma=sigma,x=x_test[batch_num*batch_size:(batch_num+1)*batch_size],mode='test')
+            if x_test.shape[0]%batch_num_all != 0:
+                batch_num += 1
+                k_test[batch_num*batch_size:,:] = self.init_kernel(kernel=kernel,sigma=sigma,x=x_test[batch_num*batch_size:],mode='test')
+        if self.cal_mode == 'accuracy':
+            y_pre = k_test@t.inverse(self.kernel)@self.y_train
+        elif self.cal_mode == 'around':
+            y_pre = t.nn.functional.normalize(k_test,p=1,dim=1)@self.y_train
         if predict_mode == 'all':
             img = t.zeros((self.m,self.n)).to(self.mask_in)
             img = img.to(t.float32)
