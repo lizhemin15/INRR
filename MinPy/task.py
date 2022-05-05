@@ -489,7 +489,6 @@ class kernel_task(basic_task):
 
     
 class train_kernel_task(basic_task):
-    # TODO 利用自动微分求最佳权重
     def __init__(self,m=240,n=240,random_rate=0.5,mask_mode='random',
                 data_path=None,mask_path=None,
                 patch_num=10,feature_type='coordinate',task_type='completion'):
@@ -515,11 +514,11 @@ class train_kernel_task(basic_task):
 
     def init_weight(self,feature_list):
         self.feature_dim = self.cal_feature_dim(feature_list)
-        self.w = t.eye(self.feature_dim)*1e2
+        self.w = t.eye(self.feature_dim)
         if cuda_if:
             self.w = self.w.cuda(cuda_num)
         self.w = t.nn.Parameter(self.w)
-        self.optimizer = t.optim.Adam([self.w],lr=1)
+        self.optimizer = t.optim.Adam([self.w],lr=1e1)
 
     def get_mse(self,feature_list,p,impute_pic=None,return_pic=False):
         if cuda_if:
