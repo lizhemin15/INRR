@@ -280,21 +280,30 @@ class kernel_task(basic_task):
     def __init__(self,m=240,n=240,random_rate=0.5,mask_mode='random',
                 data_path=None,kernel='gaussian',sigma=1,mask_path=None,
                 patch_num=10,feature_type='coordinate',task_type='completion',
-                cal_mode='accuracy'):
+                cal_mode='accuracy',impute_pic=None,weight=None):
         self.m,self.n = m,n
         self.task_type = task_type
         self.init_data(m=m,n=n,data_path=data_path)
         self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,patch_num=patch_num)
-        if isinstance(feature_type,list):
-            self.x_train,self.x_test,self.y_train = self.combination_data(feature_type)
-        else:
-            self.x_train,self.x_test,self.y_train = self.transformed_data(feature_type)
+        self.impute_pic = impute_pic
+        self.weight = weight
+        self.feature_type = feature_type
+        self.init_xy()
         if cal_mode == 'accuracy':
             self.init_kernel(kernel,sigma)
         else:
             self.cal_mode = cal_mode
 
-
+    def init_xy(self):
+        if isinstance(self.feature_type,list):
+                    self.x_train,self.x_test,self.y_train = self.combination_data(self.feature_type)
+        else:
+            self.x_train,self.x_test,self.y_train = self.transformed_data(self.feature_type)
+        if self.weight != None:
+            if cuda_if:
+                self.x_train,self.x_test = self.x_train@self.weight.cuda(cuda_num),self.x_test@self.weight.cuda(cuda_num)
+            else:
+                self.x_train,self.x_test = self.x_train@self.weight,self.x_test@self.weight
     def combination_data(self,feature_list):
         for i,feature in enumerate(feature_list):
             x_train,x_test,y_train = self.transformed_data(feature)
@@ -331,30 +340,80 @@ class kernel_task(basic_task):
             x_train = random_feature(x_train)
             x_test = random_feature(x_test)
         if feature_type == 'patch':
-            # TODO 也分为两个模式，预填充与不填充版本
-            pass
-        if feature_type == 'exchangeable':
-            # TODO 预填充模式下，整行整列作为特征
-            M_row = t.nn.functional.normalize(self.mask_in.to(t.float32),p=1,dim=1)
-            M_col = t.nn.functional.normalize(self.mask_in.to(t.float32),p=1,dim=0)
-            if cuda_if:
-                row_mean = t.sum(self.pic*M_row,axis=1).reshape(-1,1)@t.ones((1,self.n)).cuda(cuda_num)
-                col_mean = t.ones((self.m,1)).cuda(cuda_num)@t.sum(self.pic*M_col,axis=1).reshape(1,-1)
+            def img2patch(a):
+                m,n = a.shape[0],a.shape[1]
+                shift_m = int(np.sqrt(m)/2)*2+1
+                shift_n = int(np.sqrt(n)/2)*2+1
+                a = a.repeat((shift_m)*(shift_n),3,3)
+                center_index = (shift_m)//2*shift_n+shift_n//2
+                for i_m in range(shift_m):
+                    for i_n in range(shift_n):
+                        shift_real_m = i_m-shift_m//2
+                        shift_real_n = i_n-shift_n//2
+                        if shift_real_m<0:
+                            if shift_real_n<0:
+                                a[i_m*shift_n+i_n,:shift_real_m,:shift_real_n] = a[center_index,-shift_real_m:,-shift_real_n:]
+                            elif shift_real_n==0:
+                                a[i_m*shift_n+i_n,:shift_real_m,:] = a[center_index,-shift_real_m:,:]
+                            elif shift_real_n>0:
+                                a[i_m*shift_n+i_n,:shift_real_m,shift_real_n:] = a[center_index,-shift_real_m:,:-shift_real_n]
+                        elif shift_real_m == 0:
+                            if shift_real_n<0:
+                                a[i_m*shift_n+i_n,:,:shift_real_n] = a[center_index,:,-shift_real_n:]
+                            elif shift_real_n==0:
+                                a[i_m*shift_n+i_n,:,:] = a[center_index,:,:]
+                            elif shift_real_n>0:
+                                a[i_m*shift_n+i_n,:,shift_real_n:] = a[center_index,:,:-shift_real_n]
+                        else:
+                            if shift_real_n<0:
+                                a[i_m*shift_n+i_n,shift_real_m:,:shift_real_n] = a[center_index,:-shift_real_m,-shift_real_n:]
+                            elif shift_real_n==0:
+                                a[i_m*shift_n+i_n,shift_real_m:,:] = a[center_index,:-shift_real_m,:]
+                            elif shift_real_n>0:
+                                a[i_m*shift_n+i_n,shift_real_m:,shift_real_n:] = a[center_index,:-shift_real_m,:-shift_real_n]
+                    return a[:,m:2*m,n:2*n]
+            if self.impute_pic == None:
+                pass
             else:
-                row_mean = t.sum(self.pic*M_row,axis=1).reshape(-1,1)@t.ones((1,self.n))
-                col_mean = t.ones((self.m,1))@t.sum(self.pic*M_col,axis=1).reshape(1,-1)
-            N_train = int(t.sum(self.mask_in).item())
-            x_train = t.zeros((N_train,2))
-            x_test = t.zeros((self.m*self.n-N_train,2))
-            x_train[:,0] = row_mean[self.mask_in==1].reshape(-1)
-            x_train[:,1] = col_mean[self.mask_in==1].reshape(-1)
-            x_test[:,0] = row_mean[self.mask_in==0].reshape(-1)
-            x_test[:,1] = col_mean[self.mask_in==0].reshape(-1)
+                stack_patch = img2patch(self.impute_pic)
+                N_train = int(t.sum(self.mask_in).item())
+                x_train = t.zeros((N_train,stack_patch.shape[0]))
+                x_test = t.zeros((self.m*self.n-N_train,stack_patch.shape[0]))
+                for i in range(stack_patch.shape[0]):
+                    x_train[:,i] = stack_patch[i,:,:][self.mask_in==1].reshape(-1)
+                    x_test[:,i] = stack_patch[i,:,:][self.mask_in==0].reshape(-1)
+
+        if feature_type == 'exchangeable':
+            if self.impute_pic == None:
+                M_row = t.nn.functional.normalize(self.mask_in.to(t.float32),p=1,dim=1)
+                M_col = t.nn.functional.normalize(self.mask_in.to(t.float32),p=1,dim=0)
+                if cuda_if:
+                    row_mean = t.sum(self.pic*M_row,axis=1).reshape(-1,1)@t.ones((1,self.n)).cuda(cuda_num)
+                    col_mean = t.ones((self.m,1)).cuda(cuda_num)@t.sum(self.pic*M_col,axis=1).reshape(1,-1)
+                else:
+                    row_mean = t.sum(self.pic*M_row,axis=1).reshape(-1,1)@t.ones((1,self.n))
+                    col_mean = t.ones((self.m,1))@t.sum(self.pic*M_col,axis=1).reshape(1,-1)
+                N_train = int(t.sum(self.mask_in).item())
+                x_train = t.zeros((N_train,2))
+                x_test = t.zeros((self.m*self.n-N_train,2))
+                x_train[:,0] = row_mean[self.mask_in==1].reshape(-1)
+                x_train[:,1] = col_mean[self.mask_in==1].reshape(-1)
+                x_test[:,0] = row_mean[self.mask_in==0].reshape(-1)
+                x_test[:,1] = col_mean[self.mask_in==0].reshape(-1)
+            else:
+                stack_row = self.impute_pic.repeat(self.n,1,1).transpose(0,1)
+                stack_col = self.impute_pic.repeat(self.m,1,1).transpose(1,2)
+                stack_all = t.cat((stack_row,stack_col),2)
+                N_train = int(t.sum(self.mask_in).item())
+                x_train = t.zeros((N_train,stack_all.shape[2]))
+                x_test = t.zeros((self.m*self.n-N_train,stack_all.shape[2]))
+                for i in range(stack_all.shape[2]):
+                    x_train[:,i] = stack_all[:,:,i][self.mask_in==1].reshape(-1)
+                    x_test[:,i] = stack_all[:,:,i][self.mask_in==0].reshape(-1)
 
         if cuda_if:
             x_train = x_train.cuda(cuda_num)
             x_test = x_test.cuda(cuda_num)
-        # TODO weighted feature
         y_train = self.pic[self.mask_in==1].reshape((-1,1))
         if cuda_if:
             y_train = y_train.cuda(cuda_num)
@@ -374,7 +433,7 @@ class kernel_task(basic_task):
             else:
                 y2 = t.ones((x.shape[0],1))@y2.reshape(1,-1)
             xy = x@y.T
-            result = t.exp(-(x2+y2-2*xy)/sigma)
+            result = t.exp(-(x2+y2-2*xy)/sigma/x.shape[1]**2)
             
             return result
 
@@ -408,6 +467,7 @@ class kernel_task(basic_task):
             if cuda_if:
                 k_test = k_test.cuda(cuda_num)
             batch_size = x_test.shape[0]//batch_num_all
+            # TODO 列上分batch
             for batch_num in range(batch_num_all):
                 k_test[batch_num*batch_size:(batch_num+1)*batch_size,:] = self.init_kernel(kernel=kernel,sigma=sigma,x=x_test[batch_num*batch_size:(batch_num+1)*batch_size],mode='test')
             if x_test.shape[0]%batch_num_all != 0:
@@ -428,5 +488,75 @@ class kernel_task(basic_task):
             return y_pre
 
     
+class train_kernel_task(basic_task):
+    # TODO 利用自动微分求最佳权重
+    def __init__(self,m=240,n=240,random_rate=0.5,mask_mode='random',
+                data_path=None,mask_path=None,
+                patch_num=10,feature_type='coordinate',task_type='completion'):
+        self.m,self.n = m,n
+        self.task_type = task_type
+        self.random_rate = random_rate
+        self.mask_mode = mask_mode
+        self.data_path = data_path
+        self.mask_path = mask_path
+        self.init_data(m=m,n=n,data_path=data_path)
+        self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,patch_num=patch_num)
+        self.init_weight(feature_type)
+
+
+    def cal_feature_dim(self,feature_list):
+        dim = 0
+        for feature in feature_list:
+            if feature == 'coordinate' or feature == 'exchangeable':
+                dim += 2
+            elif feature == 'patch':
+                dim += (int(np.sqrt(self.m))+1)*(int(np.sqrt(self.n))+1)
+        return dim
+
+    def init_weight(self,feature_list):
+        self.feature_dim = self.cal_feature_dim(feature_list)
+        self.w = t.eye(self.feature_dim)*1e2
+        if cuda_if:
+            self.w = self.w.cuda(cuda_num)
+        self.w = t.nn.Parameter(self.w)
+        self.optimizer = t.optim.Adam([self.w],lr=1)
+
+    def get_mse(self,feature_list,p,impute_pic=None,return_pic=False):
+        if cuda_if:
+            weight_in = self.w*t.eye(self.feature_dim).cuda(cuda_num)
+        else:
+            weight_in = self.w*t.eye(self.feature_dim)
+        task_now = kernel_task(m=self.m,n=self.n,random_rate=self.random_rate,mask_mode=self.mask_mode,
+                        data_path=self.data_path,kernel='gaussian',sigma=1,mask_path=self.mask_path,
+                        patch_num=10,feature_type=feature_list,cal_mode='around',impute_pic=impute_pic,weight=weight_in)
+        task_now.mask_in = self.get_mask(self.mask_in,p)
+        task_now.init_xy()
+        y_pre = task_now.predict('all',sigma=1,batch_if=True,batch_num_all=10)
+        if return_pic:
+            return y_pre
+        else:
+            return loss.mse(y_pre,self.pic,self.mask_in)
+
+    def get_loss(self,feature_list,p,sample_num=10,impute_pic=None):
+        loss_all = 0
+        for i in range(sample_num):
+            loss_all += self.get_mse(feature_list,p,impute_pic)
+        return loss_all
+    
+
+    def get_mask(self,mask,p=0.5):
+        mask_mask = t.rand(mask.shape)
+        mask_new = mask.clone()
+        mask_new[mask_mask>1-p] = 0
+        return mask_new
+
+    def train(self,feature_list,p=0.5,sample_num=10,impute_pic=None):
+        self.optimizer.zero_grad()
+        loss_all = self.get_loss(feature_list,p,sample_num,impute_pic)
+        loss_all.backward()
+        self.optimizer.step()
+        return loss_all.item()
+    
+
 
 
