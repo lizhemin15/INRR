@@ -470,6 +470,7 @@ class kernel_task(basic_task):
             y_pre[batch_num*batch_size:(batch_num+1)*batch_size,:] = self.cal_y(k_now)
         if x_test.shape[0]%batch_num_all != 0:
             batch_num += 1
+            k_now = self.init_kernel(kernel=kernel,sigma=sigma,x=x_test[batch_num*batch_size:],mode='test')
             y_pre[batch_num*batch_size:,:] = self.cal_y(k_now)
 
         if predict_mode == 'all':
@@ -491,7 +492,7 @@ class kernel_task(basic_task):
     
 class train_kernel_task(basic_task):
     def __init__(self,m=240,n=240,random_rate=0.5,mask_mode='random',
-                data_path=None,mask_path=None,
+                data_path=None,mask_path=None,weight_mode='all',
                 patch_num=10,feature_type='coordinate',task_type='completion'):
         self.m,self.n = m,n
         self.task_type = task_type
@@ -499,6 +500,7 @@ class train_kernel_task(basic_task):
         self.mask_mode = mask_mode
         self.data_path = data_path
         self.mask_path = mask_path
+        self.weight_mode = weight_mode
         self.init_data(m=m,n=n,data_path=data_path)
         self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,patch_num=patch_num)
         self.init_weight(feature_type)
@@ -522,10 +524,12 @@ class train_kernel_task(basic_task):
         self.optimizer = t.optim.Adam([self.w],lr=3e1)
 
     def get_mse(self,feature_list,p,impute_pic=None,return_pic=False):
-        if cuda_if:
-            weight_in = self.w*t.eye(self.feature_dim).cuda(cuda_num)
+        if self.weight_mode == 'all':
+            weight_in = self.w
         else:
             weight_in = self.w*t.eye(self.feature_dim)
+        if cuda_if:
+            weight_in = weight_in.cuda(cuda_num)
         task_now = kernel_task(m=self.m,n=self.n,random_rate=self.random_rate,mask_mode=self.mask_mode,
                         data_path=self.data_path,kernel='gaussian',sigma=1,mask_path=self.mask_path,
                         patch_num=10,feature_type=feature_list,cal_mode='around',impute_pic=impute_pic,weight=weight_in)
