@@ -449,7 +449,7 @@ class kernel_task(basic_task):
                 kernel_test = kernel_test.cuda(cuda_num)
             return kernel_test
 
-    def predict(self,predict_mode='test',x_test=None,kernel='gaussian',sigma=1,batch_if=False,batch_num_all=10):
+    def predict(self,predict_mode='test',x_test=None,kernel='gaussian',sigma=1,batch_num_all=10):
         if predict_mode == 'test':
             x_test = self.x_test
         elif predict_mode == 'train':
@@ -459,24 +459,19 @@ class kernel_task(basic_task):
                 x_test = t.cat((self.x_train,self.x_test),0)
             else:
                 x_test = self.x_train
-
-        if not batch_if:
-            k_test = self.init_kernel(kernel=kernel,sigma=sigma,x=x_test,mode='test')
+        if cuda_if:
+            y_pre = t.ones((x_test.shape[0],1)).cuda(cuda_num)
         else:
-            k_test = t.ones((x_test.shape[0],self.x_train.shape[0]))
-            if cuda_if:
-                k_test = k_test.cuda(cuda_num)
-            batch_size = x_test.shape[0]//batch_num_all
-            # TODO 列上分batch
-            for batch_num in range(batch_num_all):
-                k_test[batch_num*batch_size:(batch_num+1)*batch_size,:] = self.init_kernel(kernel=kernel,sigma=sigma,x=x_test[batch_num*batch_size:(batch_num+1)*batch_size],mode='test')
-            if x_test.shape[0]%batch_num_all != 0:
-                batch_num += 1
-                k_test[batch_num*batch_size:,:] = self.init_kernel(kernel=kernel,sigma=sigma,x=x_test[batch_num*batch_size:],mode='test')
-        if self.cal_mode == 'accuracy':
-            y_pre = k_test@t.inverse(self.kernel)@self.y_train
-        elif self.cal_mode == 'around':
-            y_pre = t.nn.functional.normalize(k_test,p=1,dim=1)@self.y_train
+            y_pre = t.ones((x_test.shape[0],1))
+        batch_size = x_test.shape[0]//batch_num_all
+        # TODO 列上分batch
+        for batch_num in range(batch_num_all):
+            k_now = self.init_kernel(kernel=kernel,sigma=sigma,x=x_test[batch_num*batch_size:(batch_num+1)*batch_size],mode='test')
+            y_pre[batch_num*batch_size:(batch_num+1)*batch_size,:] = self.cal_y(k_now)
+        if x_test.shape[0]%batch_num_all != 0:
+            batch_num += 1
+            y_pre[batch_num*batch_size:,:] = self.cal_y(k_now)
+
         if predict_mode == 'all':
             img = t.zeros((self.m,self.n)).to(self.mask_in)
             img = img.to(t.float32)
@@ -487,6 +482,12 @@ class kernel_task(basic_task):
         else:
             return y_pre
 
+    def cal_y(self,k_test):
+        if self.cal_mode == 'accuracy':
+            y_pre = k_test@t.inverse(self.kernel)@self.y_train
+        elif self.cal_mode == 'around':
+            y_pre = t.nn.functional.normalize(k_test,p=1,dim=1)@self.y_train
+        return y_pre
     
 class train_kernel_task(basic_task):
     def __init__(self,m=240,n=240,random_rate=0.5,mask_mode='random',
@@ -518,7 +519,7 @@ class train_kernel_task(basic_task):
         if cuda_if:
             self.w = self.w.cuda(cuda_num)
         self.w = t.nn.Parameter(self.w)
-        self.optimizer = t.optim.Adam([self.w],lr=1e1)
+        self.optimizer = t.optim.Adam([self.w],lr=3e1)
 
     def get_mse(self,feature_list,p,impute_pic=None,return_pic=False):
         if cuda_if:
@@ -530,7 +531,7 @@ class train_kernel_task(basic_task):
                         patch_num=10,feature_type=feature_list,cal_mode='around',impute_pic=impute_pic,weight=weight_in)
         task_now.mask_in = self.get_mask(self.mask_in,p)
         task_now.init_xy()
-        y_pre = task_now.predict('all',sigma=1,batch_if=True,batch_num_all=10)
+        y_pre = task_now.predict('all',sigma=1)
         if return_pic:
             return y_pre
         else:
