@@ -2,6 +2,7 @@ import os
 import sys
 from unittest.mock import patch
 import torch as t
+from torch.utils.data import DataLoader
 import numpy as np
 import pickle as pkl
 current_dir = os.path.abspath(os.path.dirname(__file__))
@@ -435,6 +436,7 @@ class kernel_task(basic_task):
 
         if kernel == 'gaussian':
             kernel_func = gaus_func
+
         
         feature_dim_list = self.cal_feature_dim(self.feature_type)
         dim_all = 0
@@ -458,6 +460,40 @@ class kernel_task(basic_task):
                 dim_list.append((int(np.sqrt(self.m)/2)*2+1)*(int(np.sqrt(self.n)/2)*2+1))
         return dim_list
 
+
+    def rf(self):
+        #TODO 5 RF
+        pass
+    def rf_sgd(self,x_train,x_test,D=1000,sigma=1,batch_size=256,iteration=100):
+        # 1.将N个数据随机映射到 N*2D 维的 phi 矩阵
+        # 2.dataloader
+        # 3.定义w \in R^{2D*1} 
+        # 4.构建损失函数，优化器
+        # 5.迭代优化指定步数
+        B = t.randn(x_train.shape[1],D)*sigma
+        if cuda_if:
+            B = B.cuda(cuda_num)
+        phi_x = t.cat((t.cos(x_train@B),t.sin(x_train@B)),1)/np.sqrt(D)
+        torch_data = dataloader.tensor_to_loader(phi_x,self.y_train)
+        dataset = DataLoader(torch_data, batch_size=batch_size, shuffle=True, drop_last=False)
+        w = t.rand(2*D,1)
+        if cuda_if:
+            w = w.cuda(cuda_num)
+        w = t.nn.Parameter(w)
+        optimizer = t.optim.Adam([w],lr=1e-3)
+        for i in range(iteration):
+            for _,data in enumerate(dataset):
+                optimizer.zero_grad()
+                x = data[0]
+                y = data[1]
+                loss = t.mean((x@w-y)**2)
+                loss.backward()
+                optimizer.step()
+            if i%100 == 0:
+                print(loss.item())
+        return t.cat((t.cos(x_test@B),t.sin(x_test@B)),1)@w/np.sqrt(D)
+
+
     def predict(self,predict_mode='test',x_test=None,kernel='gaussian',sigma=1,batch_num_all=10):
         if predict_mode == 'test':
             x_test = self.x_test
@@ -472,15 +508,22 @@ class kernel_task(basic_task):
             y_pre = t.ones((x_test.shape[0],1)).cuda(cuda_num)
         else:
             y_pre = t.ones((x_test.shape[0],1))
-        batch_size = x_test.shape[0]//batch_num_all
-        # TODO 列上分batch
-        for batch_num in range(batch_num_all):
-            k_now = self.cal_kernel(kernel=kernel,sigma=sigma,x=x_test[batch_num*batch_size:(batch_num+1)*batch_size])
-            y_pre[batch_num*batch_size:(batch_num+1)*batch_size,:] = k_now@self.y_train
-        if x_test.shape[0]%batch_num_all != 0:
-            batch_num += 1
-            k_now = self.cal_kernel(kernel=kernel,sigma=sigma,x=x_test[batch_num*batch_size:])
-            y_pre[batch_num*batch_size:,:] = k_now@self.y_train
+
+        if kernel == 'gaussian':
+            batch_size = x_test.shape[0]//batch_num_all
+            # TODO 列上分batch
+            for batch_num in range(batch_num_all):
+                k_now = self.cal_kernel(kernel=kernel,sigma=sigma,x=x_test[batch_num*batch_size:(batch_num+1)*batch_size])
+                y_pre[batch_num*batch_size:(batch_num+1)*batch_size,:] = k_now@self.y_train
+            if x_test.shape[0]%batch_num_all != 0:
+                batch_num += 1
+                k_now = self.cal_kernel(kernel=kernel,sigma=sigma,x=x_test[batch_num*batch_size:])
+                y_pre[batch_num*batch_size:,:] = k_now@self.y_train
+        elif kernel == 'RF':#random feature
+            pass#TODO 4 编写Random Feature
+        elif kernel == 'RF_SGD':
+            y_pre = self.rf_sgd(self.x_train,x_test,D=100,sigma=1,batch_size=256,iteration=1000)
+
 
         if predict_mode == 'all':
             img = t.zeros((self.m,self.n)).to(self.mask_in)
@@ -538,7 +581,7 @@ class train_kernel_task(basic_task):
                         patch_num=10,feature_type=feature_list,impute_pic=impute_pic,weight=weight_in)
         task_now.mask_in = self.get_mask(self.mask_in,p)
         task_now.init_xy()
-        y_pre = task_now.predict('all',sigma=1)
+        y_pre = task_now.predict('all',sigma=1,kernel='RF_SGD')
         if return_pic:
             return y_pre
         else:
