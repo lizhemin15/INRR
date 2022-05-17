@@ -469,7 +469,7 @@ class kernel_task(basic_task):
         phi_X = t.cat((t.cos(x_train@B),t.sin(x_train@B)),1)/np.sqrt(D)
         phi_x = t.cat((t.cos(x_test@B),t.sin(x_test@B)),1)/np.sqrt(D)
         phi_XX = phi_X.T@phi_X
-        return phi_x@t.linalg.pinv(phi_XX)@phi_X.T@self.y_train
+        return phi_x@t.pinverse(phi_XX)@phi_X.T@self.y_train
 
     def rf_sgd(self,x_train,x_test,D=1000,sigma=1,batch_size=256,iteration=100):
         # 1.将N个数据随机映射到 N*2D 维的 phi 矩阵
