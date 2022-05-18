@@ -82,10 +82,9 @@ class basic_demo(object):
             else:
                 final_img = self.net.data
             self.loss_dict['nmae_test'].append(loss.nmae(final_img,pic,mask_in).detach().cpu().numpy())
-        self.net.opt.zero_grad()
         return loss_all
     
-    def train(self,pic,mu=1,eta=[0],mask_in=None,fid_name=None,train_reg_if=True,sample_num=1000,gan_if=False,dis_step=1):
+    def train(self,pic,mu=1,eta=[0],mask_in=None,fid_name=None,train_reg_if=True,sample_num=1000,gan_if=False,dis_step=1,train_B=False):
         # loss_all = mu*loss_fid +  eta*loss_reg 
         # (Specially, when we choose mu=1, eta=0, We train the mdoel without regularizer)
         # If we set mu=0, this means we only train the regularizer term 
@@ -98,8 +97,15 @@ class basic_demo(object):
                 loss_dis.backward(retain_graph=True)
                 self.dis.opt.step()
         loss_all = self.get_loss(fid_name,pic,mask_in,eta,mu,sample_num=sample_num)
-        loss_all.backward()
-        self.net.update()
+        if train_B == True:
+            self.net.opt_B.zero_grad()
+        self.net.opt.zero_grad()
+        
+        loss_all.backward(retain_graph=True)
+        if train_B == False:
+            self.net.update()
+        else:
+            self.net.update_B()
         if train_reg_if:
             for reg in self.reg:
                 if reg.type != 'hc_reg':
@@ -145,9 +151,9 @@ class air_net(basic_demo):
                 reg.update(self.net.data)
 
 class fp(basic_demo):
-    def __init__(self,para=[2,100,100,1],reg=None,def_type=0,hadm_lr=1e-3,img=None,net_lr=1e-3,std_b=1e-3,act='relu',std_w=1e-3,sigma=1):
+    def __init__(self,para=[2,100,100,1],reg=None,def_type=0,hadm_lr=1e-3,img=None,net_lr=1e-3,std_b=1e-3,act='relu',std_w=1e-3,sigma=1,cv_if=False):
         #self.net = net.dmf(para)
-        self.net = net.fp(para,img=img,lr=net_lr,std_b=std_b,act=act,std_w=std_w,sigma=sigma)
+        self.net = net.fp(para,img=img,lr=net_lr,std_b=std_b,act=act,std_w=std_w,sigma=sigma,cv_if=cv_if)
         self.reg = reg
         self.loss_dict={'loss_fid':[],'loss_all':[],'nmae_test':[]}
         for reg_now in self.reg:

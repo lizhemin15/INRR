@@ -130,9 +130,10 @@ class shuffle_task(basic_task):
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',
                  opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,
                  act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_load_path=None,
-                 task_type='completion',noise_dict=None,sample_mode='random',att_para=None,sigma=1):
+                 task_type='completion',noise_dict=None,sample_mode='random',att_para=None,sigma=1,cv_if=False):
         self.m,self.n = m,n
         self.task_type = task_type
+        self.cv_if = cv_if
         self.noise_dict = noise_dict
         self.init_data(m=m,n=n,data_path=data_path,shuffle_mode=shuffle_mode)
         self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,given_mask=given_mask,patch_num=patch_num)
@@ -151,13 +152,21 @@ class shuffle_task(basic_task):
         self.reg_mode = reg_mode
         self.model_name = model_name
         
+    def get_mask(self,sample_func=None,rate=0.5):
+        if sample_func == None:
+            self.mask_W = self.mask_in.clone()
+            self.mask_B = self.mask_in.clone()
+            mask_mask = t.rand(self.mask_in.shape)
+            self.mask_W[mask_mask < rate] = 0
+            self.mask_B[mask_mask >= rate] = 0
+        else:
+            pass
 
 
-    
     def train(self,epoch=10000,verbose=True,imshow=True,print_epoch=100,
               imshow_epoch=1000,plot_mode='gray',stop_err=None,train_reg_gap=1,
              reg_start_epoch=0,eta=[None,None,None,None],model_save_path=None,
-             model_save=False,sample_num=1000,fid_name=None,lr=1e-3):
+             model_save=False,sample_num=1000,fid_name=None,lr=1e-3,train_B=False):
         self.pro_list = []
         for ite in range(epoch):
             if ite>reg_start_epoch:
@@ -173,11 +182,18 @@ class shuffle_task(basic_task):
                     eta = [None,None,None,None]
             else:
                 eta = [None,None,None,None]
-            if ite%train_reg_gap == 0:
-                # 4.传入input_x,input_y
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=True,sample_num=sample_num,fid_name=fid_name)
+            if self.cv_if == False:
+                mask_in = self.mask_in.clone()
+            elif train_B:
+                mask_in = self.mask_B.clone()
             else:
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=self.mask_in,train_reg_if=False,sample_num=sample_num,fid_name=fid_name)
+                mask_in = self.mask_W.clone()
+
+            if ite%train_reg_gap == 0:
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=mask_in,train_reg_if=True,sample_num=sample_num,fid_name=fid_name,train_B=train_B)
+            else:
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=mask_in,train_reg_if=False,sample_num=sample_num,fid_name=fid_name,train_B=train_B)
+
             if ite % print_epoch==0 and verbose == True:
                 pprint.progress_bar(ite,epoch,self.model.loss_dict) # 格式化输出训练的loss，打印出训练进度条
             if ite % imshow_epoch==0 and imshow == True:
@@ -209,7 +225,7 @@ class shuffle_task(basic_task):
                     break
         # 绘图
         if imshow == True:
-            self.plot(ite+1)
+            self.plot(len(self.model.loss_dict['nmae_test']))
         if model_save == True:
             t.save(self.model.net.net,model_save_path)
 
@@ -241,7 +257,7 @@ class shuffle_task(basic_task):
         if model_name == 'dip':
             model = demo.dip(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         elif model_name == 'fp':
-            model = demo.fp(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,act=act,std_w=std_w,sigma=sigma)
+            model = demo.fp(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,act=act,std_w=std_w,sigma=sigma,cv_if=self.cv_if)
         elif model_name == 'dmf':
             model = demo.basic_dmf(para,self.reg_list,std_w)
         elif model_name == 'fc':
@@ -623,4 +639,4 @@ class train_kernel_task(basic_task):
     
 
 
-
+    
