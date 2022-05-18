@@ -24,9 +24,10 @@ class basic_task(object):
 
     def init_mask(self,mask_mode='random',random_rate=0.5,mask_path=None,given_mask=None,patch_num=3):
         if mask_mode == 'random':
-            transformer = dataloader.data_transform(z=self.pic,return_type='tensor')
-            mask_in = transformer.get_drop_mask(rate=random_rate) #rate为丢失率
-            mask_in[mask_in<1] = 0
+            #transformer = dataloader.data_transform(z=self.pic,return_type='tensor')
+            mask_mask = t.rand(self.m,self.n)#transformer.get_drop_mask(rate=random_rate) #rate为丢失率
+            mask_in = t.ones((self.m,self.n))
+            mask_in[mask_mask<random_rate] = 0
             if cuda_if:
                 mask_in = mask_in.cuda(cuda_num)
         elif mask_mode == 'patch':
@@ -65,7 +66,7 @@ class basic_task(object):
         #plot.gray_im(self.mask_in.cpu())
 
     def init_data(self,m=240,n=240,data_path=None,shuffle_mode='I'):
-        ori_pic = dataloader.get_data(height=m,width=n,pic_name=data_path)
+        ori_pic = dataloader.get_data(height=n,width=m,pic_name=data_path)
         def add_noise(pic,noise_dict):
             def get_gauss_noisy_image(img_np, sigma):
                 """Adds Gaussian noise to an image.
@@ -129,7 +130,7 @@ class shuffle_task(basic_task):
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',
                  opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,
                  act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_load_path=None,
-                 task_type='completion',noise_dict=None,sample_mode='random',att_para=None):
+                 task_type='completion',noise_dict=None,sample_mode='random',att_para=None,sigma=1):
         self.m,self.n = m,n
         self.task_type = task_type
         self.noise_dict = noise_dict
@@ -146,7 +147,7 @@ class shuffle_task(basic_task):
                         input_mode=input_mode,std_b=std_b,
                         opt_type=opt_type,std_w=std_w,act=act,
                         net_list=net_list,n_layers=n_layers,
-                        scale_factor=scale_factor,att_para=att_para)
+                        scale_factor=scale_factor,att_para=att_para,sigma=sigma)
         self.reg_mode = reg_mode
         self.model_name = model_name
         
@@ -225,8 +226,8 @@ class shuffle_task(basic_task):
     
     def init_reg(self,m=240,n=240,model_path=None,sample_mode='random'):
         reg_hc = reg.hc_reg(name='lap')
-        reg_row = reg.auto_reg(m,'row')
-        reg_col = reg.auto_reg(n,'col')
+        reg_row = reg.auto_reg(n,'row')
+        reg_col = reg.auto_reg(m,'col')
         if model_path == None:
             reg_nn = reg.hc_reg(name='lap')
         else:
@@ -236,11 +237,11 @@ class shuffle_task(basic_task):
     def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],
                     input_mode='masked',std_b=1e-1,opt_type='Adam',
                     std_w=1e-3,act='relu',net_list=['dmf'],n_layers=3,
-                    scale_factor=2,att_para=None):
+                    scale_factor=2,att_para=None,sigma=1):
         if model_name == 'dip':
             model = demo.dip(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         elif model_name == 'fp':
-            model = demo.fp(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,act=act,std_w=std_w)
+            model = demo.fp(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,act=act,std_w=std_w,sigma=sigma)
         elif model_name == 'dmf':
             model = demo.basic_dmf(para,self.reg_list,std_w)
         elif model_name == 'fc':
@@ -281,7 +282,7 @@ class kernel_task(basic_task):
     def __init__(self,m=240,n=240,random_rate=0.5,mask_mode='random',
                 data_path=None,kernel='gaussian',sigma=1,mask_path=None,
                 patch_num=10,feature_type='coordinate',task_type='completion',
-                impute_pic=None,weight=None):
+                impute_pic=None,weight=None,scale=1):
         self.m,self.n = m,n
         self.task_type = task_type
         self.init_data(m=m,n=n,data_path=data_path)
@@ -289,6 +290,10 @@ class kernel_task(basic_task):
         self.impute_pic = impute_pic
         self.weight = weight
         self.feature_type = feature_type
+        if cuda_if:
+            self.scale = scale.cuda(cuda_num)
+        else:
+            self.scale = scale
         self.init_xy()
         
 
@@ -297,6 +302,7 @@ class kernel_task(basic_task):
                     self.x_train,self.x_test,self.y_train = self.combination_data(self.feature_type)
         else:
             self.x_train,self.x_test,self.y_train = self.transformed_data(self.feature_type)
+        self.x_train,self.x_test = self.x_train@self.scale,self.x_test@self.scale
         if self.weight != None:
             if cuda_if:
                 self.x_train,self.x_test = self.x_train@self.weight.cuda(cuda_num),self.x_test@self.weight.cuda(cuda_num)
@@ -431,8 +437,10 @@ class kernel_task(basic_task):
             else:
                 y2 = t.ones((x.shape[0],1))@y2.reshape(1,-1)
             xy = x@y.T
-            result = (x2+y2-2*xy)/sigma/x.shape[1]**2
+            result = (x2+y2-2*xy)/sigma**2
+            #result = t.clamp(result,0,10)
             return t.exp(-result)
+        
 
         if kernel == 'gaussian':
             kernel_func = gaus_func
@@ -462,7 +470,6 @@ class kernel_task(basic_task):
 
 
     def rf(self,x_train,x_test,D=1000,sigma=1):
-        #TODO 5 RF
         B = t.randn(x_train.shape[1],D)*sigma
         if cuda_if:
             B = B.cuda(cuda_num)
@@ -518,7 +525,6 @@ class kernel_task(basic_task):
 
         if kernel == 'gaussian':
             batch_size = x_test.shape[0]//batch_num_all
-            # TODO 列上分batch
             for batch_num in range(batch_num_all):
                 k_now = self.cal_kernel(kernel=kernel,sigma=sigma,x=x_test[batch_num*batch_size:(batch_num+1)*batch_size])
                 y_pre[batch_num*batch_size:(batch_num+1)*batch_size,:] = k_now@self.y_train
@@ -546,8 +552,9 @@ class kernel_task(basic_task):
 class train_kernel_task(basic_task):
     def __init__(self,m=240,n=240,random_rate=0.5,mask_mode='random',
                 data_path=None,mask_path=None,weight_mode='all',
-                patch_num=10,feature_type='coordinate',task_type='completion',lr=1e-1):
+                patch_num=10,feature_type='coordinate',task_type='completion',lr=1e-1,scale=t.eye(2)):
         self.m,self.n = m,n
+        self.scale = scale
         self.task_type = task_type
         self.random_rate = random_rate
         self.mask_mode = mask_mode
@@ -585,10 +592,10 @@ class train_kernel_task(basic_task):
             weight_in = weight_in.cuda(cuda_num)
         task_now = kernel_task(m=self.m,n=self.n,random_rate=self.random_rate,mask_mode=self.mask_mode,
                         data_path=self.data_path,kernel='gaussian',sigma=1,mask_path=self.mask_path,
-                        patch_num=10,feature_type=feature_list,impute_pic=impute_pic,weight=weight_in)
+                        patch_num=10,feature_type=feature_list,impute_pic=impute_pic,weight=weight_in,scale=self.scale)
         task_now.mask_in = self.get_mask(self.mask_in,p)
         task_now.init_xy()
-        y_pre = task_now.predict('all',sigma=1,kernel='RF_SGD')
+        y_pre = task_now.predict('all',sigma=1,kernel='gaussian')
         if return_pic:
             return y_pre
         else:

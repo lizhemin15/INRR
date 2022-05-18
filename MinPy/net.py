@@ -303,6 +303,9 @@ class inr(basic_net):
         xx,yy = np.meshgrid(x,y)
         self.xyz = np.stack([xx,yy],axis=2).astype('float32')
         self.input = t.tensor(self.xyz).reshape(-1,2)
+        if self.rf_if:
+            B = t.randn(self.input.shape[1],self.feature_dim)*self.sigma
+            self.input = t.cat((t.cos(self.input@B),t.sin(self.input@B)),1)
         if cuda_if:
             self.input = self.input.cuda(cuda_num)
             
@@ -329,9 +332,16 @@ class inr(basic_net):
         self.data = self.init_data()
 
 class fp(inr):
-    def __init__(self,params,img,lr=1e-3,std_b=1e-3,act='relu',std_w=1e-3):
+    def __init__(self,params,img,lr=1e-3,std_b=1e-3,act='relu',std_w=1e-3,sigma=1):
         self.type = 'fp'
-        params = [2,2000,1000,500,200,1]
+        if params[0] == 2:
+            params = [2,2000,1000,500,200,1]
+            self.rf_if = False
+        else:
+            self.feature_dim =params[0]
+            params = [params[0]*2,2000,1000,500,200,1]
+            self.rf_if = True
+            self.sigma = sigma
         if act == 'sin':
             hidden_size = img.shape[0]*img.shape[1]//1024
             params = [2,hidden_size,hidden_size,hidden_size,hidden_size,1]
