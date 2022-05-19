@@ -84,7 +84,8 @@ class basic_demo(object):
             self.loss_dict['nmae_test'].append(loss.nmae(final_img,pic,mask_in).detach().cpu().numpy())
         return loss_all
     
-    def train(self,pic,mu=1,eta=[0],mask_in=None,fid_name=None,train_reg_if=True,sample_num=1000,gan_if=False,dis_step=1,train_B=False):
+    def train(self,pic,mu=1,eta=[0],mask_in=None,fid_name=None,train_reg_if=True,sample_num=1000,
+                gan_if=False,dis_step=1,train_B=False,train_sigma=False):
         # loss_all = mu*loss_fid +  eta*loss_reg 
         # (Specially, when we choose mu=1, eta=0, We train the mdoel without regularizer)
         # If we set mu=0, this means we only train the regularizer term 
@@ -99,13 +100,21 @@ class basic_demo(object):
         loss_all = self.get_loss(fid_name,pic,mask_in,eta,mu,sample_num=sample_num)
         if train_B == True:
             self.net.opt_B.zero_grad()
-        self.net.opt.zero_grad()
+        elif train_sigma:
+            self.net.opt_sigma.zero_grad()
+        else:
+            self.net.opt.zero_grad()
+
         
         loss_all.backward(retain_graph=True)
         if train_B == False:
-            self.net.update()
+            if train_sigma == False:
+                self.net.update()
+            else:
+                self.net.update_sigma()
         else:
             self.net.update_B()
+
         if train_reg_if:
             for reg in self.reg:
                 if reg.type != 'hc_reg':

@@ -166,7 +166,7 @@ class shuffle_task(basic_task):
     def train(self,epoch=10000,verbose=True,imshow=True,print_epoch=100,
               imshow_epoch=1000,plot_mode='gray',stop_err=None,train_reg_gap=1,
              reg_start_epoch=0,eta=[None,None,None,None],model_save_path=None,
-             model_save=False,sample_num=1000,fid_name=None,lr=1e-3,train_B=False):
+             model_save=False,sample_num=1000,fid_name=None,lr=1e-3,train_B=False,train_sigma=False):
         self.pro_list = []
         for ite in range(epoch):
             if ite>reg_start_epoch:
@@ -184,15 +184,15 @@ class shuffle_task(basic_task):
                 eta = [None,None,None,None]
             if self.cv_if == False:
                 mask_in = self.mask_in.clone()
-            elif train_B:
+            elif train_B==True or train_sigma==True:
                 mask_in = self.mask_B.clone()
             else:
                 mask_in = self.mask_W.clone()
 
             if ite%train_reg_gap == 0:
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=mask_in,train_reg_if=True,sample_num=sample_num,fid_name=fid_name,train_B=train_B)
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=mask_in,train_reg_if=True,sample_num=sample_num,fid_name=fid_name,train_B=train_B,train_sigma=train_sigma)
             else:
-                self.model.train(self.pic,mu=1,eta=eta,mask_in=mask_in,train_reg_if=False,sample_num=sample_num,fid_name=fid_name,train_B=train_B)
+                self.model.train(self.pic,mu=1,eta=eta,mask_in=mask_in,train_reg_if=False,sample_num=sample_num,fid_name=fid_name,train_B=train_B,train_sigma=train_sigma)
 
             if ite % print_epoch==0 and verbose == True:
                 pprint.progress_bar(ite,epoch,self.model.loss_dict) # 格式化输出训练的loss，打印出训练进度条

@@ -306,16 +306,10 @@ class inr(basic_net):
         if cuda_if:
             self.input = self.input.cuda(cuda_num)
         if self.rf_if:
-            B = t.randn(self.input.shape[1],self.feature_dim)*self.sigma
-            if self.cv_if:
-                if cuda_if:
-                    B = B.cuda(cuda_num)
-                B = t.nn.Parameter(B)
-                self.opt_B = t.optim.Adam([B],lr=1e-3)
-            self.input = t.cat((t.cos(self.input.clone()@B),t.sin(self.input.clone()@B)),1)
-
-        
-            
+            if self.train_sigma == False:
+                self.init_B()
+            else:
+                self.init_sigma()
 
 
     def cor2img(self,img):
@@ -330,10 +324,36 @@ class inr(basic_net):
     
     def init_data(self):
         # Initial data
-        pre_img = self.net(self.input)
+        eye_2 = t.eye(2)
+        if cuda_if:
+            eye_2 = eye_2.cuda(cuda_num)
+        if isinstance(self.sigma,float):
+            input_now = self.input@(self.sigma*eye_2)@self.B
+        else:
+            input_now = self.input@(self.sigma[0,0]*eye_2)@self.B
+        pre_img = self.net(t.cat((t.cos(input_now),t.sin(input_now)),1))
         if self.type == 'mulbacon':
             self.multi_outputs = self.net.multi_outputs
         return self.cor2img(pre_img)
+
+    def init_B(self):
+        self.B = t.randn(self.input.shape[1],self.feature_dim)*self.sigma
+        if cuda_if:
+                self.B = self.B.cuda(cuda_num)
+        if self.cv_if:
+            self.B = t.nn.Parameter(self.B)
+            self.opt_B = t.optim.Adam([self.B],lr=1e-3)
+
+    def init_sigma(self):
+        if self.rf_if:
+            if cuda_if:
+                    self.sigma = t.eye(2).cuda(cuda_num)
+            if self.cv_if:
+                self.sigma = t.nn.Parameter(self.sigma)
+                self.opt_sigma = t.optim.Adam([self.sigma],lr=1e0)
+            self.B = t.randn(self.input.shape[1],self.feature_dim)
+            if cuda_if:
+                    self.B = self.B.cuda(cuda_num)
 
     def update(self):
         self.opt.step()
@@ -341,6 +361,10 @@ class inr(basic_net):
 
     def update_B(self):
         self.opt_B.step()
+        self.data = self.init_data()
+
+    def update_sigma(self):
+        self.opt_sigma.step()
         self.data = self.init_data()
 
 class fp(inr):
@@ -353,8 +377,12 @@ class fp(inr):
             self.feature_dim =params[0]
             params = [params[0]*2,2000,1000,500,200,1]
             self.rf_if = True
-            self.sigma = sigma
             self.cv_if = cv_if
+            if isinstance(sigma,str):
+                self.train_sigma = True
+            else:
+                self.train_sigma = False
+                self.sigma = sigma
         if act == 'sin':
             hidden_size = img.shape[0]*img.shape[1]//1024
             params = [2,hidden_size,hidden_size,hidden_size,hidden_size,1]
