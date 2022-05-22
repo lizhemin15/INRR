@@ -337,7 +337,7 @@ class inr(basic_net):
         return self.cor2img(pre_img)
 
     def init_B(self):
-        self.B = t.randn(self.input.shape[1],self.feature_dim)*self.sigma
+        self.B = t.randn(self.input.shape[1],self.feature_dim)
         if cuda_if:
                 self.B = self.B.cuda(cuda_num)
         if self.cv_if:
