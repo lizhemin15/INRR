@@ -130,7 +130,7 @@ class shuffle_task(basic_task):
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',
                  opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,
                  act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_load_path=None,
-                 task_type='completion',noise_dict=None,sample_mode='random',att_para=None,sigma=1,cv_if=False):
+                 task_type='completion',noise_dict=None,sample_mode='random',att_para=None,sigma=1,cv_if=False,lr=1e-3):
         self.m,self.n = m,n
         self.task_type = task_type
         self.cv_if = cv_if
@@ -148,7 +148,7 @@ class shuffle_task(basic_task):
                         input_mode=input_mode,std_b=std_b,
                         opt_type=opt_type,std_w=std_w,act=act,
                         net_list=net_list,n_layers=n_layers,
-                        scale_factor=scale_factor,att_para=att_para,sigma=sigma)
+                        scale_factor=scale_factor,att_para=att_para,sigma=sigma,lr=lr)
         self.reg_mode = reg_mode
         self.model_name = model_name
         
@@ -253,11 +253,11 @@ class shuffle_task(basic_task):
     def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],
                     input_mode='masked',std_b=1e-1,opt_type='Adam',
                     std_w=1e-3,act='relu',net_list=['dmf'],n_layers=3,
-                    scale_factor=2,att_para=None,sigma=1):
+                    scale_factor=2,att_para=None,sigma=1,lr=1e-3):
         if model_name == 'dip':
             model = demo.dip(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         elif model_name == 'fp':
-            model = demo.fp(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,act=act,std_w=std_w,sigma=sigma,cv_if=self.cv_if)
+            model = demo.fp(para=para,reg=self.reg_list,img=self.pic,std_b=std_b,act=act,std_w=std_w,sigma=sigma,cv_if=self.cv_if,net_lr=lr)
         elif model_name == 'dmf':
             model = demo.basic_dmf(para,self.reg_list,std_w)
         elif model_name == 'fc':
