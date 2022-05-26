@@ -100,6 +100,7 @@ class basic_demo(object):
         loss_all = self.get_loss(fid_name,pic,mask_in,eta,mu,sample_num=sample_num)
         if train_B == True:
             self.net.opt_B.zero_grad()
+            self.net.opt.zero_grad()
         elif train_sigma:
             self.net.opt_sigma.zero_grad()
         else:
@@ -114,6 +115,7 @@ class basic_demo(object):
                 self.net.update_sigma()
         else:
             self.net.update_B()
+            self.net.update()
 
         if train_reg_if:
             for reg in self.reg:

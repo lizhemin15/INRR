@@ -342,7 +342,7 @@ class inr(basic_net):
                 self.B = self.B.cuda(cuda_num)
         if self.cv_if:
             self.B = t.nn.Parameter(self.B)
-            self.opt_B = t.optim.Adam([self.B],lr=1e0)
+            self.opt_B = t.optim.Adam([self.B],lr=1.3e0)
 
     def init_sigma(self):
         if self.rf_if:
