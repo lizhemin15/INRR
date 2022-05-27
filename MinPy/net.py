@@ -328,9 +328,9 @@ class inr(basic_net):
         if cuda_if:
             eye_2 = eye_2.cuda(cuda_num)
         if isinstance(self.sigma,float):
-            input_now = self.input@(self.sigma*eye_2)@self.B
+            input_now = self.input@(self.sigma*eye_2)@(self.B)
         else:
-            input_now = self.input@(self.sigma[0,0]*eye_2)@self.B
+            input_now = self.input@(self.sigma[0,0]*eye_2)@(self.B)
         pre_img = self.net(t.cat((t.cos(input_now),t.sin(input_now)),1))
         if self.type == 'mulbacon':
             self.multi_outputs = self.net.multi_outputs
@@ -350,7 +350,7 @@ class inr(basic_net):
                     self.sigma = t.eye(2).cuda(cuda_num)
             if self.cv_if:
                 self.sigma = t.nn.Parameter(self.sigma)
-                self.opt_sigma = t.optim.Adam([self.sigma],lr=1e0)
+                self.opt_sigma = t.optim.Adam([self.sigma],lr=1e1)
             self.B = t.randn(self.input.shape[1],self.feature_dim)
             if cuda_if:
                     self.B = self.B.cuda(cuda_num)
