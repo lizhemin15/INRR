@@ -215,7 +215,7 @@ class shuffle_task(basic_task):
                             plot.red_im(matrix_data) # 显示训练的图像，可设置参数保存图像
                 print('RMSE:',t.sqrt(t.mean((self.pic-self.model.net.data)**2)).detach().cpu().numpy())
                 print_NMAE = t.sum(t.abs(self.pic-self.model.net.data)*(1-self.mask_in))/(t.max(self.pic)-t.min(self.pic))/t.sum(1-self.mask_in)
-                print_NAME = print_NMAE.detach().cpu().numpy()
+                print_NMAE = print_NMAE.detach().cpu().numpy()
                 print('NMAE',print_NMAE)
                 print('PSNR',loss.psnr(self.ori_pic,self.model.net.data))
             # 添加投影
@@ -637,6 +637,132 @@ class train_kernel_task(basic_task):
         self.optimizer.step()
         return loss_all.item()
     
+
+class sinr(basic_task):
+    # TODO Storage-inference split INR
+    # 这个体系结构下包含两个部分:存储器和推理器
+    # 存储器部分存储指定精度的网格数据
+    # 推理器对于网格内任意一点，以该点所在位置和小网格信息，通过参数化的推理器后得到该点预测
+    # 训练过程中，可以更新的参数包括：网格上的数据、推理器的参数化
+    # 特别的，在使用 softmax 作为加权系数时，其\sigma为输入位置的函数
+    # 构建损失函数的时候，可以对参数进行正则，例如我们期望\sigma尽可能小
+    def __init__(self,grid_res=256,m=256,n=256,data_path=None,mask_mode='random',random_rate=0.5,
+                 mask_path=None,given_mask=None,patch_num=4,batch_size=256):
+        self.grid_res = grid_res
+        self.m = m
+        self.n = n
+        self.batch_size = batch_size
+        self.task_type = 'completion'
+        self.init_B()
+        self.init_data(m=m,n=n,data_path=data_path,shuffle_mode='I')
+        self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,given_mask=given_mask,patch_num=patch_num)
+        self.init_grid()
+        self.init_inference()
+        self.init_sets()
+
+    def init_grid(self):
+        self.grid = self.mask_in*self.ori_pic
+        #t.zeros((self.grid_res,self.grid_res))
+        if cuda_if:
+            self.grid = self.grid.cuda(cuda_num)
+        self.grid = t.nn.Parameter(self.grid)
+        self.grid_opt = t.optim.Adam([self.grid],lr=1e-3)
+
+    def init_inference(self):
+        self.net = t.nn.Sequential(
+                t.nn.Linear(400,256),
+                t.nn.ReLU(),
+                t.nn.Linear(256,256),
+                t.nn.ReLU(),
+                t.nn.Linear(256,1)
+                )
+        if cuda_if:
+            self.net = self.net.cuda(cuda_num)
+        self.net_opt = t.optim.Adam(self.net.parameters(),lr=1e-1)
+
+
+    def init_sets(self):
+        x = np.linspace(0,1,self.n)
+        y = np.linspace(0,1,self.m)
+        xx,yy = np.meshgrid(x,y)
+        xx,yy = xx.T,yy.T
+        xyz = np.stack([xx,yy],axis=2).astype('float32')
+        xyz = t.tensor(xyz)
+        #pic_coor = xyz.reshape(-1,2)
+        self.train_x = xyz[self.mask_in==1]
+        self.train_y = self.ori_pic[self.mask_in==1]
+        self.pre_x = xyz.reshape(-1,2)
+        self.pre_y = self.ori_pic.reshape(-1,1)
+        if cuda_if:
+            self.train_x,self.train_y,self.pre_x,self.pre_y = self.train_x.cuda(cuda_num),self.train_y.cuda(cuda_num),self.pre_x.cuda(cuda_num),self.pre_y.cuda(cuda_num)
+        data = t.utils.data.TensorDataset(self.train_x,self.train_y)
+        self.data_loader = t.utils.data.DataLoader(data,batch_size = self.batch_size,shuffle=True)
+        
+
+
+    def train(self):
+        # TODO random get x
+        for _,batch_data in enumerate(self.data_loader):
+            x = t.rand([self.batch_size,2])
+            # x = batch_data[0]
+            # y = batch_data[1]
+            # if cuda_if:
+            #     x,y = x.cuda(cuda_num),y.cuda(cuda_num)
+            if cuda_if:
+                x = x.cuda(cuda_num)
+            loss = self.get_loss(x)
+            self.net_opt.zero_grad()
+            self.grid_opt.zero_grad()
+            loss.backward(retain_graph=True)
+            self.net_opt.step()
+            self.grid_opt.step()
+
+    def init_B(self):
+        self.B = t.randn(2,100)*1e1
+        self.Bw = t.randn(1,100)*1e1
+        if cuda_if:
+            self.B = self.B.cuda(cuda_num)
+            self.Bw = self.Bw.cuda(cuda_num)
+
+    def get_input(self,x):
+        input_now = x@self.B
+        rf_x= t.cat((t.cos(input_now),t.sin(input_now)),1)
+        x = x * t.tensor([self.grid_res,self.grid_res],device=cuda_num).float()
+        
+        indices = x.long()
+        weights = x - indices.float()
+        x0 = indices[:,0].clamp(min=0,max=self.grid_res-1)
+        y0 = indices[:,1].clamp(min=0,max=self.grid_res-1)
+        x1 = (x0+1).clamp(max=self.grid_res-1)
+        y1 = (y0+1).clamp(max=self.grid_res-1)
+        # [[w0,w1],[w2,w3]]
+        w0 = self.grid[x0,y0].reshape(-1,1) * (1.0 - weights[:,0:1]) * (1.0 - weights[:,1:2])
+        w1 = self.grid[x0,y1].reshape(-1,1) * weights[:,0:1] * (1.0 - weights[:,1:2])
+        w2 = self.grid[x1,y0].reshape(-1,1) * (1.0 - weights[:,0:1]) * weights[:,1:2]
+        w3 = self.grid[x1,y1].reshape(-1,1) * weights[:,0:1] * weights[:,1:2]
+        w = w0+w1+w2+w3
+        rf_w= t.cat((t.cos(w@self.Bw),t.sin(w@self.Bw)),1)
+
+        return  t.cat([rf_x,rf_w],axis=1),w0+w1+w2+w3
+        return rf_x,w0+w1+w2+w3
+
+    def get_loss(self,x):
+        x_input,y = self.get_input(x)
+        pre = self.net(x_input)
+        return t.mean((pre-y)**2)
+
+    def predict(self):
+        x_input,y_grid = self.get_input(self.pre_x)
+        pre_y = self.net(x_input)
+        img = pre_y.reshape(self.m,self.n)
+        plot.gray_im(y_grid.reshape(self.m,self.n).cpu().detach().numpy())
+        plot.gray_im(img.cpu().detach().numpy())
+        plot.gray_im(self.grid.cpu().detach().numpy())
+        print('RMSE:',t.sqrt(t.mean((self.pic-img)**2)).detach().cpu().numpy())
+        print_NMAE = t.sum(t.abs(self.pic-img)*(1-self.mask_in))/(t.max(self.pic)-t.min(self.pic))/t.sum(1-self.mask_in)
+        print_NMAE = print_NMAE.detach().cpu().numpy()
+        print('NMAE',print_NMAE)
+        print('PSNR',loss.psnr(self.ori_pic,img))
 
 
 
