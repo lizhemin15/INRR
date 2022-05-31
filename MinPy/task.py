@@ -225,7 +225,7 @@ class shuffle_task(basic_task):
                     break
         # 绘图
         if imshow == True:
-            self.plot(len(self.model.loss_dict['nmae_test']))
+            self.plot(len(self.model.loss_dict['psnr']))
         if model_save == True:
             t.save(self.model.net.net,model_save_path)
 
@@ -287,8 +287,8 @@ class shuffle_task(basic_task):
     def plot(self,epoch):
         line_dict = {}
         line_dict['x_plot']=np.arange(0,epoch,1)
-        line_dict[self.reg_mode] = np.array(self.model.loss_dict['nmae_test'])
-        plot.lines(line_dict,save_if=False,black_if=True,ylabel_name='NMAE')
+        line_dict[self.reg_mode] = np.array(self.model.loss_dict['psnr'])
+        plot.lines(line_dict,save_if=False,black_if=True,ylabel_name='PSNR')
     
     def save(self,data=None,path=None):
         with open(path,'wb') as f:

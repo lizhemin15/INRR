@@ -20,7 +20,7 @@ class basic_demo(object):
     def __init__(self,para=[6,6,6],reg=None):
         self.net = net.dmf(para)
         self.reg = reg
-        self.loss_dict={'loss_fid':[],'loss_all':[],'nmae_test':[]}
+        self.loss_dict={'loss_fid':[],'loss_all':[],'nmae_test':[],'psnr':[]}
         for reg_now in self.reg:
             self.loss_dict['loss_'+reg_now.type] = []
     
@@ -82,6 +82,10 @@ class basic_demo(object):
             else:
                 final_img = self.net.data
             self.loss_dict['nmae_test'].append(loss.nmae(final_img,pic,mask_in).detach().cpu().numpy())
+            if 'psnr' not in self.loss_dict.keys():
+                self.loss_dict['psnr'] = [loss.psnr(final_img,pic).detach().cpu().numpy()]
+            else:
+                self.loss_dict['psnr'].append(loss.psnr(final_img,pic).detach().cpu().numpy())
         return loss_all
     
     def train(self,pic,mu=1,eta=[0],mask_in=None,fid_name=None,train_reg_if=True,sample_num=1000,
