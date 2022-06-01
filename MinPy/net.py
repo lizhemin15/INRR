@@ -316,8 +316,58 @@ class inr(basic_net):
         # 给定形状为mn*1的网络输出，返回m*n的灰度图像
         return img.reshape(self.m,self.n)
     
-    def init_para(self,params,std_b,act,std_w):
-        model = bias_net(params,std_b,act=act,std_w=std_w)
+    def init_para(self,params,std_b,act,std_w,bias_net_if=False):
+        if bias_net_if:
+            model = bias_net(params,std_b,act=act,std_w=std_w)
+        else:
+            if act == 'relu':
+                nonlinear =  nn.ReLU()
+            elif act == 'sigmoid':
+                nonlinear =  nn.Sigmoid()
+            elif act == 'tanh':
+                nonlinear =  nn.Tanh()
+            elif act == 'softmax':
+                nonlinear =  nn.Softmax()
+            elif act == 'threshold':
+                nonlinear =  nn.Threshold()
+            elif act == 'hardtanh':
+                nonlinear =  nn.Hardtanh()
+            elif act == 'elu':
+                nonlinear =  nn.ELU()
+            elif act == 'relu6':
+                nonlinear =  nn.ReLU6()
+            elif act == 'leaky_relu':
+                nonlinear =  nn.LeakyReLU()
+            elif act == 'prelu':
+                nonlinear =  nn.PReLU()
+            elif act == 'rrelu':
+                nonlinear =  nn.RReLU()
+            elif act == 'logsigmoid':
+                nonlinear =  nn.LogSigmoid()
+            elif act == 'hardshrink':
+                nonlinear =  nn.Hardshrink()
+            elif act == 'tanhshrink':
+                nonlinear =  nn.Tanhshrink()
+            elif act == 'softsign':
+                nonlinear =  nn.Softsign()
+            elif act == 'softplus':
+                nonlinear =  nn.Softplus()
+            elif act == 'softmin':
+                nonlinear =  nn.Softmin()
+            elif act == 'softmax':
+                nonlinear =  nn.Softmax()
+            elif act == 'log_softmax':
+                nonlinear =  nn.LogSoftmax()
+            elif act == 'softshrink':
+                nonlinear =  nn.Softshrink()
+            else:
+                print('Wrong act name:',act)
+            nn_list = []
+            for enu,(n_i,n_o) in enumerate(zip(params[:-1],params[1:])):
+                nn_list.append(nn.Linear(n_i,n_o))
+                if enu < len(params)-2:
+                    nn_list.append(nonlinear)
+            model = nn.Sequential(*nn_list)
         if cuda_if:
             model = model.cuda(cuda_num)
         return model
@@ -368,7 +418,7 @@ class inr(basic_net):
         self.data = self.init_data()
 
 class fp(inr):
-    def __init__(self,params,img,lr=1e-3,std_b=1e-3,act='relu',std_w=1e-3,sigma=1,cv_if=False):
+    def __init__(self,params,img,lr=1e-3,std_b=1e-3,act='relu',std_w=1e-3,sigma=1,cv_if=False,bias_net_if=False):
         self.type = 'fp'
         if params[0] == 2:
             params = [2,2000,1000,500,200,1]
@@ -386,12 +436,15 @@ class fp(inr):
         if act == 'sin':
             hidden_size = img.shape[0]*img.shape[1]//1024
             params = [2,hidden_size,hidden_size,hidden_size,hidden_size,1]
-        self.net = self.init_para(params,std_b=std_b,act=act,std_w=std_w)
+        self.net = self.init_para(params,std_b=std_b,act=act,std_w=std_w,bias_net_if=bias_net_if)
         self.img = img
         self.img2cor()
         #print(self.input.shape)
         self.data = self.init_data()
         self.opt = self.init_opt(lr)
+
+
+
 
 class fc(inr):
     # fully_connected such as for AutoEncoderDecoder
