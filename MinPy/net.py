@@ -368,6 +368,7 @@ class inr(basic_net):
                 if enu < len(params)-2:
                     nn_list.append(nonlinear)
             model = nn.Sequential(*nn_list)
+            print(model)
         if cuda_if:
             model = model.cuda(cuda_num)
         return model
@@ -425,7 +426,8 @@ class fp(inr):
             self.rf_if = False
         else:
             self.feature_dim =params[0]
-            params = [params[0]*2,2000,1000,500,200,1]
+            params[0] = params[0]*2
+            #params = [params[0]*2,2000,1000,500,200,1]
             self.rf_if = True
             self.cv_if = cv_if
             if isinstance(sigma,str):

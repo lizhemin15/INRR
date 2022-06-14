@@ -173,7 +173,7 @@ class fp(basic_demo):
         self.loss_dict={'loss_fid':[],'loss_all':[],'nmae_test':[]}
         for reg_now in self.reg:
             self.loss_dict['loss_'+reg_now.type] = []
-# TODO demo 加MLP       
+     
 
 class mlp(basic_demo):
     def __init__(self,para=[2,100,100,1],reg=None,def_type=0,hadm_lr=1e-3,img=None,net_lr=1e-3,std_b=1e-3,act='relu',std_w=1e-3,sigma=1,cv_if=False):
