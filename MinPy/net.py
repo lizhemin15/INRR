@@ -378,14 +378,17 @@ class inr(basic_net):
         eye_2 = t.eye(2)
         if cuda_if:
             eye_2 = eye_2.cuda(cuda_num)
-        if isinstance(self.sigma,float):
-            input_now = self.input@(self.sigma*eye_2)@(self.B)
+        if self.rf_if:
+            if isinstance(self.sigma,float):
+                input_now = self.input@(self.sigma*eye_2)@(self.B)
+            else:
+                input_now = self.input@(self.sigma[0,0]*eye_2)@(self.B)
+            pre_img = self.net(t.cat((t.cos(input_now),t.sin(input_now)),1))
+            if self.type == 'mulbacon':
+                self.multi_outputs = self.net.multi_outputs
+            return self.cor2img(pre_img)
         else:
-            input_now = self.input@(self.sigma[0,0]*eye_2)@(self.B)
-        pre_img = self.net(t.cat((t.cos(input_now),t.sin(input_now)),1))
-        if self.type == 'mulbacon':
-            self.multi_outputs = self.net.multi_outputs
-        return self.cor2img(pre_img)
+            return self.cor2img(self.net(self.input))
 
     def init_B(self):
         self.B = t.randn(self.input.shape[1],self.feature_dim)
@@ -468,6 +471,7 @@ class fc(inr):
 class mfn(inr):
     def __init__(self,params,img,lr=1e-3,type_name='fourier'):
         self.type = type_name
+        self.rf_if = False
         self.net = self.init_para(params)
         self.img = img
         self.img2cor()
