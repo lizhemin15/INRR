@@ -306,7 +306,7 @@ class inr(basic_net):
         self.input = t.tensor(self.xyz).reshape(-1,2)
         if cuda_if:
             self.input = self.input.cuda(cuda_num)
-        if self.rf_if:
+        if self.type=='fp' and self.rf_if:
             if self.train_sigma == False:
                 self.init_B()
             else:
