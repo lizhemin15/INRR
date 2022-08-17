@@ -1,5 +1,6 @@
 import os
 from re import S
+from siren_pytorch import SirenNet
 import sys
 current_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(current_dir)
@@ -649,7 +650,14 @@ class siren(inr):
         self.opt = self.init_opt(lr)
 
     def init_para(self,in_features, hidden_features, hidden_layers, out_features):
-        model = Siren(in_features, hidden_features, hidden_layers, out_features)
+        model = SirenNet(
+                        dim_in = in_features,                        # input dimension, ex. 2d coor
+                        dim_hidden = hidden_features,                  # hidden dimension
+                        dim_out = out_features,                       # output dimension, ex. rgb value
+                        num_layers = 5,                    # number of layers
+                        final_activation = nn.Sigmoid(),   # activation of final layer (nn.Identity() for direct output)
+                        w0_initial = 30.                   # different signals may require different omega_0 in the first layer - this is a hyperparameter
+                    )
         if cuda_if:
             model = model.cuda(cuda_num)
         return model
