@@ -379,7 +379,7 @@ class inr(basic_net):
         eye_2 = t.eye(2)
         if cuda_if:
             eye_2 = eye_2.cuda(cuda_num)
-        if self.rf_if:
+        if self.type=='fp' and self.rf_if:
             if isinstance(self.sigma,float):
                 input_now = self.input@(self.sigma*eye_2)@(self.B)
             else:
@@ -400,7 +400,7 @@ class inr(basic_net):
             self.opt_B = t.optim.Adam([self.B],lr=1.3e0)
 
     def init_sigma(self):
-        if self.rf_if:
+        if self.type=='fp' and self.rf_if:
             if cuda_if:
                     self.sigma = t.eye(2).cuda(cuda_num)
             if self.cv_if:
