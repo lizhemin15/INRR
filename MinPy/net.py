@@ -380,7 +380,7 @@ class inr(basic_net):
         if cuda_if:
             eye_2 = eye_2.cuda(cuda_num)
         if self.type=='fp' and self.rf_if:
-            if isinstance(self.sigma,float):
+            if isinstance(self.sigma,float) or isinstance(self.sigma,int):
                 input_now = self.input@(self.sigma*eye_2)@(self.B)
             else:
                 input_now = self.input@(self.sigma[0,0]*eye_2)@(self.B)
