@@ -42,6 +42,8 @@ class basic_net(object):
             optimizer = t.optim.Adagrad(self.net.parameters(),lr=lr)
         elif opt_type == 'Adam':
             optimizer = t.optim.Adam(self.net.parameters(),lr=lr)
+        elif opt_type == 'RegAdam':
+            optimizer = t.optim.Adam(self.net.parameters(),lr=lr, weight_decay=1e-6)
         elif opt_type == 'AdamW':
             optimizer = t.optim.AdamW(self.net.parameters(),lr=lr)
         elif opt_type == 'SparseAdam':
