@@ -273,7 +273,7 @@ class shuffle_task(basic_task):
         elif model_name == 'bacon' or model_name == 'mulbacon':
             model = demo.bacon(params=para,img=self.pic,reg=self.reg_list,type_name=model_name)
         elif model_name == 'siren':
-            model = demo.siren(para=para,reg=self.reg_list,img=self.pic)
+            model = demo.siren(para=para,reg=self.reg_list,img=self.pic,opt_type=opt_type)
         # TODO task 加MLP
         elif model_name == 'attnet':
             dim_k = att_para['dim_k']

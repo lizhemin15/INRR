@@ -638,7 +638,7 @@ class dis_net(basic_net):
         return model
 
 class siren(inr):
-    def __init__(self,params,img,lr=1e-3):
+    def __init__(self,params,img,lr=1e-3,opt_type='Adam'):
         self.type = 'siren'
         hidden_size = img.shape[0]*img.shape[1]//1024
         in_features = params[0]
@@ -649,7 +649,7 @@ class siren(inr):
         self.img = img
         self.img2cor()
         self.data = self.init_data()
-        self.opt = self.init_opt(lr)
+        self.opt = self.init_opt(lr,opt_type=opt_type)
 
     def init_para(self,in_features, hidden_features, hidden_layers, out_features):
         model = SirenNet(

@@ -333,8 +333,8 @@ class bacon(basic_demo):
             self.loss_dict['loss_'+reg_now.type] = []
 
 class siren(basic_demo):
-    def __init__(self,para=[2,100,100,1],reg=None,img=None):
-        self.net = net.siren(params=para,img=img,lr=1e-4)
+    def __init__(self,para=[2,100,100,1],reg=None,img=None,opt_type='Adam'):
+        self.net = net.siren(params=para,img=img,lr=1e-4,opt_type=opt_type)
         self.reg = reg
         self.loss_dict={'loss_fid':[],'loss_all':[],'nmae_test':[]}
         for reg_now in self.reg:
