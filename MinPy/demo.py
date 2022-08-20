@@ -53,8 +53,8 @@ class basic_demo(object):
                 index_list.append(j)
                 j+=1
                 if reg.type == 'hc_reg':
-                    if reg.name == 'nn':
-                        loss_reg_list.append(reg.loss(self.net,sample_num=sample_num))
+                    if reg.name == 'l2':
+                        loss_reg_list.append(reg.loss(self.net))
                     else:
                         loss_reg_list.append(reg.loss(self.net.data))
                     self.loss_dict['loss_'+reg.type].append(loss_reg_list[-1].detach().cpu().numpy())

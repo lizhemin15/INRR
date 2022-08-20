@@ -25,7 +25,7 @@ class hc_reg(object):
         self.type = 'hc_reg'
         self.sample_mode = sample_mode
 
-    def loss(self,M,sample_num=1000):
+    def loss(self,M):
         self.__M = M
         if self.name == 'tv1':
             return self.tv(p=1)
@@ -39,11 +39,19 @@ class hc_reg(object):
             return self.de('row')
         elif self.name == 'de_col':
             return self.de('col')
-        elif self.name == 'nn':
-            return self.nn(sample_num)
+        elif self.name == 'l2':
+            return self.lp(p=2)
         else:
             raise('Please check out your regularization term')
     
+    def lp(self,p=2):
+        reg_loss = 0
+        for name,w in self.__M.named_parameters():
+            if 'weight' in name:
+                reg_loss += t.norm(w,p=p)
+        
+
+
     def tv(self,p):
         center = self.__M[1:self.__M.shape[0]-1,1:self.__M.shape[1]-1]
         up = self.__M[1:self.__M.shape[0]-1,0:self.__M.shape[1]-2]

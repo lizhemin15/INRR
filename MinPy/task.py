@@ -174,7 +174,7 @@ class shuffle_task(basic_task):
                     eta = [None,1e-4,1e-4,None]
                 elif self.reg_mode == 'TV':
                     eta = [1e-3,None,None,None]
-                elif self.reg_mode == 'NN':
+                elif self.reg_mode == 'L2':
                     eta = [None,None,None,1]
                 elif self.reg_mode == 'eta':
                     eta = eta
@@ -244,11 +244,8 @@ class shuffle_task(basic_task):
         reg_hc = reg.hc_reg(name='lap')
         reg_row = reg.auto_reg(n,'row')
         reg_col = reg.auto_reg(m,'col')
-        if model_path == None:
-            reg_nn = reg.hc_reg(name='lap')
-        else:
-            reg_nn = reg.hc_reg(name='nn',model_path=model_path,sample_mode=sample_mode)
-        self.reg_list = [reg_hc,reg_row,reg_col,reg_nn]
+        reg_l2 = reg.hc_reg(name='l2')
+        self.reg_list = [reg_hc,reg_row,reg_col,reg_l2]
     
     def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],
                     input_mode='masked',std_b=1e-1,opt_type='Adam',
