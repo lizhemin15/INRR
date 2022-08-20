@@ -151,7 +151,7 @@ class shuffle_task(basic_task):
                         scale_factor=scale_factor,att_para=att_para,sigma=sigma,lr=lr,bias_net_if=bias_net_if)
         self.reg_mode = reg_mode
         self.model_name = model_name
-        
+    
     def get_mask(self,sample_func=None,rate=0.5):
         if sample_func == None:
             self.mask_W = self.mask_in.clone()
