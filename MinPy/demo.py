@@ -54,7 +54,7 @@ class basic_demo(object):
                 j+=1
                 if reg.type == 'hc_reg':
                     if reg.name == 'l2':
-                        loss_reg_list.append(reg.loss(self.net))
+                        loss_reg_list.append(reg.loss(self.net.net))
                     else:
                         loss_reg_list.append(reg.loss(self.net.data))
                     self.loss_dict['loss_'+reg.type].append(loss_reg_list[-1].detach().cpu().numpy())

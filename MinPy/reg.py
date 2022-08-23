@@ -45,10 +45,11 @@ class hc_reg(object):
             raise('Please check out your regularization term')
     
     def lp(self,p=2):
-        reg_loss = 0
+        reg_loss = 1
         for name,w in self.__M.named_parameters():
             if 'weight' in name:
-                reg_loss += t.norm(w,p=p)
+                reg_loss = reg_loss*t.norm(w,p=p)
+        return reg_loss
         
 
 
