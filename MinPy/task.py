@@ -166,7 +166,8 @@ class shuffle_task(basic_task):
     def train(self,epoch=10000,verbose=True,imshow=True,print_epoch=100,
               imshow_epoch=1000,plot_mode='gray',stop_err=None,train_reg_gap=1,
              reg_start_epoch=0,eta=[None,None,None,None],model_save_path=None,
-             model_save=False,sample_num=1000,fid_name=None,lr=1e-3,train_B=False,train_sigma=False):
+             model_save=False,sample_num=1000,fid_name=None,lr=1e-3,train_B=False,
+             train_sigma=False,loss_save=False,loss_save_path=None):
         self.pro_list = []
         for ite in range(epoch):
             if ite>reg_start_epoch:
@@ -228,6 +229,8 @@ class shuffle_task(basic_task):
             self.plot(len(self.model.loss_dict['psnr']))
         if model_save == True:
             t.save(self.model.net.net,model_save_path)
+        if loss_save == True:
+            self.save(self.model.loss_dict,loss_save_path)
 
 
         
