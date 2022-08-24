@@ -172,11 +172,13 @@ class shuffle_task(basic_task):
         for ite in range(epoch):
             if ite>reg_start_epoch:
                 if self.reg_mode == 'AIR':
-                    eta = [None,1e-4,1e-4,None]
+                    eta = [None,1e-4,1e-4,None,None]
                 elif self.reg_mode == 'TV':
-                    eta = [1e-3,None,None,None]
+                    eta = [1e-3,None,None,None,None]
                 elif self.reg_mode == 'L2':
-                    eta = [None,None,None,1]
+                    eta = [None,None,None,1e-3,None]
+                elif self.reg_mode == 'nn':
+                    eta = [None,None,None,None,1]
                 elif self.reg_mode == 'eta':
                     eta = eta
                 else:
@@ -243,12 +245,13 @@ class shuffle_task(basic_task):
             raise('Wrong projection mode')
         self.my_pro = my_pro
     
-    def init_reg(self,m=240,n=240,model_path=None,sample_mode='random'):
+    def init_reg(self,m=240,n=240,model_path=None,sample_mode='random',sample_num=1000):
         reg_hc = reg.hc_reg(name='lap')
         reg_row = reg.auto_reg(n,'row')
         reg_col = reg.auto_reg(m,'col')
         reg_l2 = reg.hc_reg(name='l2')
-        self.reg_list = [reg_hc,reg_row,reg_col,reg_l2]
+        reg_nn = reg.hc_reg(name='nn',model_path=model_path,sample_mode=sample_mode,sample_num=sample_num)
+        self.reg_list = [reg_hc,reg_row,reg_col,reg_l2,reg_nn]
     
     def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],
                     input_mode='masked',std_b=1e-1,opt_type='Adam',

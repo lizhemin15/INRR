@@ -16,7 +16,7 @@ cuda_num = settings.cuda_num
 class hc_reg(object):
     #使用torch写的正则化项
     #handcraft, hd
-    def __init__(self,name='lap',kernel=None,p=2,model_path=None,sample_mode='random'):
+    def __init__(self,name='lap',kernel=None,p=2,model_path=None,sample_mode='random',sample_num=1000):
         if name == 'nn':
             self.model = t.load(model_path)
         self.name = name
@@ -24,6 +24,7 @@ class hc_reg(object):
         self.__p = p
         self.type = 'hc_reg'
         self.sample_mode = sample_mode
+        self.sample_num = sample_num
 
     def loss(self,M):
         self.__M = M
@@ -41,6 +42,8 @@ class hc_reg(object):
             return self.de('col')
         elif self.name == 'l2':
             return self.lp(p=2)
+        elif self.name == 'nn':
+            return self.nn(sample_num=self.sample_num)
         else:
             raise('Please check out your regularization term')
     
