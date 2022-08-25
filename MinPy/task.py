@@ -130,11 +130,14 @@ class shuffle_task(basic_task):
                 std_b=1e-1,reg_mode=None,model_name='dmf',pro_mode='mask',
                  opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,
                  act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_load_path=None,
-                 task_type='completion',noise_dict=None,sample_mode='random',att_para=None,sigma=1,cv_if=False,lr=1e-3,bias_net_if=False):
+                 task_type='completion',noise_dict=None,sample_mode='random',att_para=None,
+                 sigma=1,cv_if=False,lr=1e-3,bias_net_if=False,omega=30.):
         self.m,self.n = m,n
         self.task_type = task_type
         self.cv_if = cv_if
         self.noise_dict = noise_dict
+        self.reg_mode = reg_mode
+        self.model_name = model_name
         self.init_data(m=m,n=n,data_path=data_path,shuffle_mode=shuffle_mode)
         self.init_mask(mask_mode=mask_mode,random_rate=random_rate,mask_path=mask_path,given_mask=given_mask,patch_num=patch_num)
         if verbose:
@@ -148,9 +151,9 @@ class shuffle_task(basic_task):
                         input_mode=input_mode,std_b=std_b,
                         opt_type=opt_type,std_w=std_w,act=act,
                         net_list=net_list,n_layers=n_layers,
-                        scale_factor=scale_factor,att_para=att_para,sigma=sigma,lr=lr,bias_net_if=bias_net_if)
-        self.reg_mode = reg_mode
-        self.model_name = model_name
+                        scale_factor=scale_factor,att_para=att_para,
+                        sigma=sigma,lr=lr,bias_net_if=bias_net_if,omega=omega)
+        
     
     def get_mask(self,sample_func=None,rate=0.5):
         if sample_func == None:
@@ -177,14 +180,14 @@ class shuffle_task(basic_task):
                     eta = [1e-3,None,None,None,None]
                 elif self.reg_mode == 'L2':
                     eta = [None,None,None,1e-3,None]
-                elif self.reg_mode == 'nn':
+                elif self.reg_mode == 'NN':
                     eta = [None,None,None,None,1]
                 elif self.reg_mode == 'eta':
                     eta = eta
                 else:
-                    eta = [None,None,None,None]
+                    eta = [None,None,None,None,None]
             else:
-                eta = [None,None,None,None]
+                eta = [None,None,None,None,None]
             if self.cv_if == False:
                 mask_in = self.mask_in.clone()
             elif train_B==True or train_sigma==True:
@@ -250,13 +253,16 @@ class shuffle_task(basic_task):
         reg_row = reg.auto_reg(n,'row')
         reg_col = reg.auto_reg(m,'col')
         reg_l2 = reg.hc_reg(name='l2')
-        reg_nn = reg.hc_reg(name='nn',model_path=model_path,sample_mode=sample_mode,sample_num=sample_num)
+        if self.reg_mode == 'NN':
+            reg_nn = reg.hc_reg(name='nn',model_path=model_path,sample_mode=sample_mode,sample_num=sample_num)
+        else:
+            reg_nn = reg.hc_reg(name='lap')
         self.reg_list = [reg_hc,reg_row,reg_col,reg_l2,reg_nn]
     
     def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],
                     input_mode='masked',std_b=1e-1,opt_type='Adam',
                     std_w=1e-3,act='relu',net_list=['dmf'],n_layers=3,
-                    scale_factor=2,att_para=None,sigma=1,lr=1e-3,bias_net_if=False):
+                    scale_factor=2,att_para=None,sigma=1,lr=1e-3,bias_net_if=False,omega=30.):
         if model_name == 'dip':
             model = demo.dip(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         elif model_name == 'fp':
@@ -276,7 +282,7 @@ class shuffle_task(basic_task):
         elif model_name == 'bacon' or model_name == 'mulbacon':
             model = demo.bacon(params=para,img=self.pic,reg=self.reg_list,type_name=model_name)
         elif model_name == 'siren':
-            model = demo.siren(para=para,reg=self.reg_list,img=self.pic,opt_type=opt_type)
+            model = demo.siren(para=para,reg=self.reg_list,img=self.pic,opt_type=opt_type,omega=omega)
         # TODO task 加MLP
         elif model_name == 'attnet':
             dim_k = att_para['dim_k']

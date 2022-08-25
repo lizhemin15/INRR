@@ -638,27 +638,27 @@ class dis_net(basic_net):
         return model
 
 class siren(inr):
-    def __init__(self,params,img,lr=1e-3,opt_type='Adam'):
+    def __init__(self,params,img,lr=1e-3,opt_type='Adam',omega=30.):
         self.type = 'siren'
         hidden_size = img.shape[0]*img.shape[1]//1024
         in_features = params[0]
         out_features = params[-1]
         hidden_features = params[1]
         hidden_layers = len(params)-2
-        self.net = self.init_para(in_features, hidden_features, hidden_layers, out_features)
+        self.net = self.init_para(in_features, hidden_features, hidden_layers, out_features,omega=omega)
         self.img = img
         self.img2cor()
         self.data = self.init_data()
         self.opt = self.init_opt(lr,opt_type=opt_type)
 
-    def init_para(self,in_features, hidden_features, hidden_layers, out_features):
+    def init_para(self,in_features, hidden_features, hidden_layers, out_features,omega):
         model = SirenNet(
                         dim_in = in_features,                        # input dimension, ex. 2d coor
                         dim_hidden = hidden_features,                  # hidden dimension
                         dim_out = out_features,                       # output dimension, ex. rgb value
-                        num_layers = 5,                    # number of layers
+                        num_layers = hidden_layers,                    # number of layers
                         final_activation = nn.Sigmoid(),   # activation of final layer (nn.Identity() for direct output)
-                        w0_initial = 30.                   # different signals may require different omega_0 in the first layer - this is a hyperparameter
+                        w0_initial = omega                   # different signals may require different omega_0 in the first layer - this is a hyperparameter
                     )
         if cuda_if:
             model = model.cuda(cuda_num)
