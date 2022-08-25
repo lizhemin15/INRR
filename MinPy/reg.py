@@ -48,10 +48,10 @@ class hc_reg(object):
             raise('Please check out your regularization term')
     
     def lp(self,p=2):
-        reg_loss = 1
+        reg_loss = 0
         for name,w in self.__M.named_parameters():
-            if 'weight' in name:
-                reg_loss = reg_loss*t.norm(w,p=p)
+            if name == 'layers.4.weight':
+                reg_loss = reg_loss+t.norm(w,p=p)
         return reg_loss
         
 
@@ -114,7 +114,7 @@ class hc_reg(object):
             input = t.rand(sample_num,2)*2-1
             if cuda_if:
                 input = input.cuda(cuda_num)
-            return loss.mse(self.model(input),self.__M.net(input))
+            return loss.mse(self.model(input),self.__M(input))
         elif self.sample_mode == 'uniform':
             x = np.linspace(-1,1,sample_num)
             y = np.linspace(-1,1,sample_num)
@@ -123,7 +123,7 @@ class hc_reg(object):
             input = t.tensor(xyz).reshape(-1,2)
             if cuda_if:
                 input = input.cuda(cuda_num)
-            return loss.mse(self.model(input),self.__M.net(input))
+            return loss.mse(self.model(input),self.__M(input))
         elif self.sample_mode == 'denoising':
             x = np.linspace(-1,1-2/sample_num,sample_num)
             y = np.linspace(-1,1-2/sample_num,sample_num)
@@ -133,7 +133,7 @@ class hc_reg(object):
             input = t.tensor(xyz).reshape(-1,2)
             if cuda_if:
                 input = input.cuda(cuda_num)
-            return loss.denoise_mse(input,self.__M.net)
+            return loss.denoise_mse(input,self.__M)
 
 
 
