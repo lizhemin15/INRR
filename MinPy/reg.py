@@ -62,8 +62,9 @@ class hc_reg(object):
         down = self.__M[1:self.__M.shape[0]-1,2:self.__M.shape[1]]
         left = self.__M[0:self.__M.shape[0]-2,1:self.__M.shape[1]-1]
         right = self.__M[2:self.__M.shape[0],1:self.__M.shape[1]-1]
-        Var = 4*center-up-down-left-right
-        return t.norm(Var,p=p)/self.__M.shape[0]
+        Var1 = 2*center-up-down
+        Var2 = 2*center-left-right
+        return (t.norm(Var1,p=p)+t.norm(Var2,p=p))/self.__M.shape[0]
 
             
     def lap(self):
