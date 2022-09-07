@@ -131,7 +131,7 @@ class shuffle_task(basic_task):
                  opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,
                  act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_load_path=None,
                  task_type='completion',noise_dict=None,sample_mode='random',att_para=None,
-                 sigma=1,cv_if=False,lr=1e-3,bias_net_if=False,omega=30.):
+                 sigma=1,cv_if=False,lr=1e-3,bias_net_if=False,omega=30.,drop_out=[0,0,0,0,0]):
         self.m,self.n = m,n
         self.task_type = task_type
         self.cv_if = cv_if
@@ -152,7 +152,7 @@ class shuffle_task(basic_task):
                         opt_type=opt_type,std_w=std_w,act=act,
                         net_list=net_list,n_layers=n_layers,
                         scale_factor=scale_factor,att_para=att_para,
-                        sigma=sigma,lr=lr,bias_net_if=bias_net_if,omega=omega)
+                        sigma=sigma,lr=lr,bias_net_if=bias_net_if,omega=omega,drop_out=drop_out)
         
     
     def get_mask(self,sample_func=None,rate=0.5):
@@ -262,7 +262,7 @@ class shuffle_task(basic_task):
     def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],
                     input_mode='masked',std_b=1e-1,opt_type='Adam',
                     std_w=1e-3,act='relu',net_list=['dmf'],n_layers=3,
-                    scale_factor=2,att_para=None,sigma=1,lr=1e-3,bias_net_if=False,omega=30.):
+                    scale_factor=2,att_para=None,sigma=1,lr=1e-3,bias_net_if=False,omega=30.,drop_out=[0,0,0,0,0]):
         if model_name == 'dip':
             model = demo.dip(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         elif model_name == 'fp':
@@ -282,7 +282,7 @@ class shuffle_task(basic_task):
         elif model_name == 'bacon' or model_name == 'mulbacon':
             model = demo.bacon(params=para,img=self.pic,reg=self.reg_list,type_name=model_name)
         elif model_name == 'siren':
-            model = demo.siren(para=para,reg=self.reg_list,img=self.pic,opt_type=opt_type,omega=omega)
+            model = demo.siren(para=para,reg=self.reg_list,img=self.pic,opt_type=opt_type,omega=omega,drop_out=drop_out)
         # TODO task 加MLP
         elif model_name == 'attnet':
             dim_k = att_para['dim_k']
