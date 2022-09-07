@@ -36,7 +36,7 @@ class Siren(nn.Module):
         self.weight = nn.Parameter(weight)
         self.bias = nn.Parameter(bias) if use_bias else None
         self.activation = Sine(w0) if activation is None else activation
-        self.dropout = nn.Dropout(p=0.5)
+        self.dropout = nn.Dropout(p=0.1)
         self.drop_if = drop_out
 
 
