@@ -175,19 +175,21 @@ class shuffle_task(basic_task):
         for ite in range(epoch):
             if ite>reg_start_epoch:
                 if self.reg_mode == 'AIR':
-                    eta = [None,1e-4,1e-4,None,None]
+                    eta = [None,1e-4,1e-4,None,None,None,None]
                 elif self.reg_mode == 'TV':
-                    eta = [1e-3,None,None,None,None]
+                    eta = [1e-3,None,None,None,None,None,None]
                 elif self.reg_mode == 'L2':
-                    eta = [None,None,None,1e-3,None]
+                    eta = [None,None,None,1e-3,None,None,None]
                 elif self.reg_mode == 'NN':
-                    eta = [None,None,None,None,1]
+                    eta = [None,None,None,None,1,None,None]
+                elif self.reg_mode == 'CAIR':
+                    eta = [None,None,None,None,None,1e-4,1e-4]
                 elif self.reg_mode == 'eta':
                     eta = eta
                 else:
-                    eta = [None,None,None,None,None]
+                    eta = [None,None,None,None,None,None,None]
             else:
-                eta = [None,None,None,None,None]
+                eta = [None,None,None,None,None,None,None]
             if self.cv_if == False:
                 mask_in = self.mask_in.clone()
             elif train_B==True or train_sigma==True:
@@ -253,11 +255,13 @@ class shuffle_task(basic_task):
         reg_row = reg.auto_reg(n,'row')
         reg_col = reg.auto_reg(m,'col')
         reg_l2 = reg.hc_reg(name='l2')
+        reg_crow = reg.cair_reg(mode='row')
+        reg_ccol = reg.cair_reg(mode='col')
         if self.reg_mode == 'NN':
             reg_nn = reg.hc_reg(name='nn',model_path=model_path,sample_mode=sample_mode,sample_num=sample_num)
         else:
             reg_nn = reg.hc_reg(name='lap')
-        self.reg_list = [reg_hc,reg_row,reg_col,reg_l2,reg_nn]
+        self.reg_list = [reg_hc,reg_row,reg_col,reg_l2,reg_nn,reg_crow,reg_ccol]
     
     def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],
                     input_mode='masked',std_b=1e-1,opt_type='Adam',
@@ -283,7 +287,6 @@ class shuffle_task(basic_task):
             model = demo.bacon(params=para,img=self.pic,reg=self.reg_list,type_name=model_name)
         elif model_name == 'siren':
             model = demo.siren(para=para,reg=self.reg_list,img=self.pic,opt_type=opt_type,omega=omega,drop_out=drop_out)
-        # TODO task 加MLP
         elif model_name == 'attnet':
             dim_k = att_para['dim_k']
             x_train,x_test = att_para['feature_map'](self.ori_pic,self.mask_in,att_para['map_mode'])
@@ -649,7 +652,6 @@ class train_kernel_task(basic_task):
     
 
 class sinr(basic_task):
-    # TODO Storage-inference split INR
     # 这个体系结构下包含两个部分:存储器和推理器
     # 存储器部分存储指定精度的网格数据
     # 推理器对于网格内任意一点，以该点所在位置和小网格信息，通过参数化的推理器后得到该点预测
@@ -711,7 +713,6 @@ class sinr(basic_task):
 
 
     def train(self):
-        # TODO random get x
         for _,batch_data in enumerate(self.data_loader):
             x = t.rand([self.batch_size,2])
             # x = batch_data[0]

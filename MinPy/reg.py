@@ -9,6 +9,7 @@ import torch.nn as nn
 import torch as t
 import numpy as np
 import loss
+from third_party.models.siren_pytorch import SirenNet
 
 cuda_if = settings.cuda_if
 cuda_num = settings.cuda_num
@@ -135,6 +136,61 @@ class hc_reg(object):
             if cuda_if:
                 input = input.cuda(cuda_num)
             return loss.denoise_mse(input,self.__M)
+
+
+# TODO 连续AIR正则
+class cair_reg(object):
+    def __init__(self,r=256,mode='row'):
+        self.type = 'cair_reg_'+mode
+        self.mode = mode
+        self.net = self.init_net(r)
+        self.opt = self.init_opt()
+
+    def init_net(self,r):
+        unet = SirenNet(
+            dim_in = 1,                        # input dimension, ex. 2d coor
+            dim_hidden = 32,                  # hidden dimension
+            dim_out = r,                       # output dimension, ex. rgb value
+            num_layers = 5,                    # number of layers
+            final_activation = nn.Softmax(),   # activation of final layer (nn.Identity() for direct output)
+            w0_initial = 5.                   # different signals may require different omega_0 in the first layer - this is a hyperparameter
+        ).cuda(cuda_num)
+        if cuda_if:
+            unet = unet.cuda(cuda_num)
+        return unet
+
+    def update(self,W):
+        self.opt.step()
+        self.data = self.init_data(W)
+
+    def lap(self,A):
+        n = A.shape[0]
+        Ones = t.ones(n,1)
+        I_n = t.from_numpy(np.eye(n)).to(t.float32)
+        if cuda_if:
+            Ones = Ones.cuda(cuda_num)
+            I_n = I_n.cuda(cuda_num)
+        A_1 = A * (t.mm(Ones,Ones.T)-I_n) # A_1 将中间的元素都归零，作为邻接矩阵
+        L = -A_1+t.mm(A_1,t.mm(Ones,Ones.T))*I_n # A_2 将邻接矩阵转化为拉普拉斯矩阵
+        return L
+
+    def init_data(self,W):
+        if self.mode == 'col':
+            img = W
+        else:
+            img = W.T
+        n = img.shape[1]
+        coor = t.linspace(-1,1,n).reshape(-1,1)
+        if cuda_if:
+            coor = coor.cuda(cuda_num)
+        self.A = self.net(coor)@self.net(coor).T
+        self.L = self.lap(self.A)
+        return t.trace(img@self.L@img.T)
+
+    def init_opt(self):
+        # Initial the optimizer of parameters in network
+        optimizer = t.optim.Adam(self.net.parameters())
+        return optimizer
 
 
 
