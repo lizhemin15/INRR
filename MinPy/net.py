@@ -14,7 +14,7 @@ from torch.autograd import Variable
 
 from third_party.models import *
 from third_party.utils.denoising_utils import *
-from third_party.models.siren_pytorch import SirenNet
+
 
 cuda_if = settings.cuda_if
 cuda_num = settings.cuda_num
