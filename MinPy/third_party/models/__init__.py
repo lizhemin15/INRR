@@ -9,6 +9,7 @@ from .ms import MSNBase
 from .bacon import BACON,MultiscaleBACON
 from .discriminator import dis_net as discriminator
 from .siren import Siren
+from .siren_pytorch import SirenNet
 from .attnet import att_net
 import torch.nn as nn
 
