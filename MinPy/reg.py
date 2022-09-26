@@ -17,9 +17,11 @@ cuda_num = settings.cuda_num
 class hc_reg(object):
     #使用torch写的正则化项
     #handcraft, hd
-    def __init__(self,name='lap',kernel=None,p=2,model_path=None,sample_mode='random',sample_num=1000):
+    def __init__(self,name='lap',kernel=None,p=2,model_path=None,sample_mode='random',sample_num=1000,L=None):
         if name == 'nn':
             self.model = t.load(model_path)
+        if name == 'flap_row' or name == 'flap_col':
+            self.L = L
         self.name = name
         self.__kernel = kernel
         self.__p = p
@@ -45,6 +47,10 @@ class hc_reg(object):
             return self.lp(p=2)
         elif self.name == 'nn':
             return self.nn(sample_num=self.sample_num)
+        elif self.name == 'flap_row':
+            return self.flap(mode='row')
+        elif self.name == 'flap_col':
+            return self.flap(mode='col')
         else:
             raise('Please check out your regularization term')
     
@@ -137,8 +143,15 @@ class hc_reg(object):
                 input = input.cuda(cuda_num)
             return loss.denoise_mse(input,self.__M)
 
+    def flap(self,mode='row'):
+        # L为加载的Laplacian矩阵
+        if mode == 'col':
+            M = self.__M.T
+        else:
+            M = self.__M
+        return t.trace(t.mm(M.T,t.mm(self.L.to(M.device),M)))
 
-# TODO 连续AIR正则
+
 class cair_reg(object):
     def __init__(self,r=256,mode='row'):
         self.type = 'cair_reg_'+mode

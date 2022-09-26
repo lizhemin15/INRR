@@ -131,7 +131,7 @@ class shuffle_task(basic_task):
                  opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,
                  act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_load_path=None,
                  task_type='completion',noise_dict=None,sample_mode='random',att_para=None,
-                 sigma=1,cv_if=False,lr=1e-3,bias_net_if=False,omega=30.,drop_out=[0,0,0,0,0]):
+                 sigma=1,cv_if=False,lr=1e-3,bias_net_if=False,omega=30.,drop_out=[0,0,0,0,0],Lr=None,Lc=None):
         self.m,self.n = m,n
         self.task_type = task_type
         self.cv_if = cv_if
@@ -146,7 +146,7 @@ class shuffle_task(basic_task):
             else:
                 plot.red_im(self.pic.cpu()*self.mask_in.cpu())
         self.init_pro(pro_mode=pro_mode)
-        self.init_reg(m,n,model_path=model_load_path,sample_mode=sample_mode)
+        self.init_reg(m,n,model_path=model_load_path,sample_mode=sample_mode,Lr=Lr,Lc=Lc)
         self.init_model(model_name=model_name,para=para,
                         input_mode=input_mode,std_b=std_b,
                         opt_type=opt_type,std_w=std_w,act=act,
@@ -175,21 +175,23 @@ class shuffle_task(basic_task):
         for ite in range(epoch):
             if ite>reg_start_epoch:
                 if self.reg_mode == 'AIR':
-                    eta = [None,1e-4,1e-4,None,None,None,None]
+                    eta = [None,1e-4,1e-4,None,None,None,None,None,None]
                 elif self.reg_mode == 'TV':
-                    eta = [1e-3,None,None,None,None,None,None]
+                    eta = [1e-3,None,None,None,None,None,None,None,None]
                 elif self.reg_mode == 'L2':
-                    eta = [None,None,None,1e-3,None,None,None]
+                    eta = [None,None,None,1e-3,None,None,None,None,None]
                 elif self.reg_mode == 'NN':
-                    eta = [None,None,None,None,1,None,None]
+                    eta = [None,None,None,None,1,None,None,None,None]
                 elif self.reg_mode == 'CAIR':
-                    eta = [None,None,None,None,None,1e-4,1e-4]
+                    eta = [None,None,None,None,None,1e-4,1e-4,None,None]
                 elif self.reg_mode == 'eta':
                     eta = eta
+                elif self.reg_mode == 'FLAP':
+                    eta = [None,None,None,None,None,None,None,1,1]
                 else:
-                    eta = [None,None,None,None,None,None,None]
+                    eta = [None,None,None,None,None,None,None,None,None]
             else:
-                eta = [None,None,None,None,None,None,None]
+                eta = [None,None,None,None,None,None,None,None,None]
             if self.cv_if == False:
                 mask_in = self.mask_in.clone()
             elif train_B==True or train_sigma==True:
@@ -250,18 +252,20 @@ class shuffle_task(basic_task):
             raise('Wrong projection mode')
         self.my_pro = my_pro
     
-    def init_reg(self,m=240,n=240,model_path=None,sample_mode='random',sample_num=1000):
+    def init_reg(self,m=240,n=240,model_path=None,sample_mode='random',sample_num=1000,Lr=None,Lc=None):
         reg_hc = reg.hc_reg(name='lap')
         reg_row = reg.auto_reg(n,'row')
         reg_col = reg.auto_reg(m,'col')
         reg_l2 = reg.hc_reg(name='l2')
         reg_crow = reg.cair_reg(mode='row')
         reg_ccol = reg.cair_reg(mode='col')
+        reg_frow = reg.hc_reg(name='flap_row',Lr=Lr)
+        reg_fcol = reg.hc_reg(name='flap_col',Lc=Lc)
         if self.reg_mode == 'NN':
             reg_nn = reg.hc_reg(name='nn',model_path=model_path,sample_mode=sample_mode,sample_num=sample_num)
         else:
             reg_nn = reg.hc_reg(name='lap')
-        self.reg_list = [reg_hc,reg_row,reg_col,reg_l2,reg_nn,reg_crow,reg_ccol]
+        self.reg_list = [reg_hc,reg_row,reg_col,reg_l2,reg_nn,reg_crow,reg_ccol,reg_frow,reg_fcol]
     
     def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],
                     input_mode='masked',std_b=1e-1,opt_type='Adam',
