@@ -187,7 +187,7 @@ class shuffle_task(basic_task):
                 elif self.reg_mode == 'eta':
                     eta = eta
                 elif self.reg_mode == 'FLAP':
-                    eta = [None,None,None,None,None,None,None,1,1]
+                    eta = [None,None,None,None,None,None,None,1e-4,1e-4]
                 else:
                     eta = [None,None,None,None,None,None,None,None,None]
             else:
@@ -259,8 +259,8 @@ class shuffle_task(basic_task):
         reg_l2 = reg.hc_reg(name='l2')
         reg_crow = reg.cair_reg(mode='row')
         reg_ccol = reg.cair_reg(mode='col')
-        reg_frow = reg.hc_reg(name='flap_row',Lr=Lr)
-        reg_fcol = reg.hc_reg(name='flap_col',Lc=Lc)
+        reg_frow = reg.hc_reg(name='flap_row',L=Lr)
+        reg_fcol = reg.hc_reg(name='flap_col',L=Lc)
         if self.reg_mode == 'NN':
             reg_nn = reg.hc_reg(name='nn',model_path=model_path,sample_mode=sample_mode,sample_num=sample_num)
         else:
