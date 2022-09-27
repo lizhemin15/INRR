@@ -175,7 +175,7 @@ class shuffle_task(basic_task):
         for ite in range(epoch):
             if ite>reg_start_epoch:
                 if self.reg_mode == 'AIR':
-                    eta = [None,1e-4,1e-4,None,None,None,None,None,None]
+                    eta = [None,1e-5,1e-5,None,None,None,None,None,None]
                 elif self.reg_mode == 'TV':
                     eta = [1e-3,None,None,None,None,None,None,None,None]
                 elif self.reg_mode == 'L2':
@@ -183,11 +183,11 @@ class shuffle_task(basic_task):
                 elif self.reg_mode == 'NN':
                     eta = [None,None,None,None,1,None,None,None,None]
                 elif self.reg_mode == 'CAIR':
-                    eta = [None,None,None,None,None,1e-4,1e-4,None,None]
+                    eta = [None,None,None,None,None,1e-6,1e-6,None,None]
                 elif self.reg_mode == 'eta':
                     eta = eta
                 elif self.reg_mode == 'FLAP':
-                    eta = [None,None,None,None,None,None,None,1e-4,1e-4]
+                    eta = [None,None,None,None,None,None,None,1e-6,1e-6]
                 else:
                     eta = [None,None,None,None,None,None,None,None,None]
             else:
