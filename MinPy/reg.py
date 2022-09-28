@@ -202,7 +202,7 @@ class cair_reg(object):
 
     def init_opt(self):
         # Initial the optimizer of parameters in network
-        optimizer = t.optim.Adam(self.net.parameters())
+        optimizer = t.optim.Adam(self.net.parameters(),lr=1e-4)
         return optimizer
 
 

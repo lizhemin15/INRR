@@ -153,6 +153,7 @@ class shuffle_task(basic_task):
                         net_list=net_list,n_layers=n_layers,
                         scale_factor=scale_factor,att_para=att_para,
                         sigma=sigma,lr=lr,bias_net_if=bias_net_if,omega=omega,drop_out=drop_out)
+        self.pro_list = []
         
     
     def get_mask(self,sample_func=None,rate=0.5):
@@ -171,7 +172,6 @@ class shuffle_task(basic_task):
              reg_start_epoch=0,eta=[None,None,None,None],model_save_path=None,
              model_save=False,sample_num=1000,fid_name=None,lr=1e-3,train_B=False,
              train_sigma=False,loss_save=False,loss_save_path=None):
-        self.pro_list = []
         for ite in range(epoch):
             if ite>reg_start_epoch:
                 if self.reg_mode == 'AIR':
