@@ -318,6 +318,8 @@ class inr(basic_net):
                     xx,yy = np.meshgrid(x,y)
                     xyz = np.stack([xx,yy],axis=2).astype('float32')
                     in_put = t.tensor(xyz).reshape(-1,2)
+                    if cuda_if:
+                        in_put = in_put.cuda(cuda_num)
                     feature_x_in = ynet(in_put).detach().reshape(self.m,n)
                     feature_x_in = t.repeat_interleave(feature_x_in,repeats=self.n,dim=1)
                 elif key == 'col':
@@ -327,12 +329,14 @@ class inr(basic_net):
                     xx,yy = np.meshgrid(x,y)
                     xyz = np.stack([xx,yy],axis=2).astype('float32')
                     in_put = t.tensor(xyz).reshape(-1,2)
+                    if cuda_if:
+                        in_put = in_put.cuda(cuda_num)
                     feature_y_in = ynet(in_put).detach().reshape(m,self.n).T
                     feature_y_in = t.repeat_interleave(feature_y_in,repeats=self.m,dim=0)
                 elif key == 'patch':
                     x1,y1,x2,y2 = ysample[key]
                     pass
-            self.input = t.cat([feature_x_in,feature_y_in],dim=2).reshape(-1,m+n)
+            self.input = t.cat([feature_x_in,feature_y_in],dim=2).reshape(-1,m+n)/(m+n)
 
         if cuda_if:
             self.input = self.input.cuda(cuda_num)
