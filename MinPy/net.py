@@ -302,13 +302,7 @@ class inr(basic_net):
         # 给定m*n灰度图像，返回mn*2
         img_numpy = self.img.cpu().detach().numpy()
         self.m,self.n = img_numpy.shape[0],img_numpy.shape[1]
-        if ynet == None:
-            x = np.linspace(-1,1,self.n)
-            y = np.linspace(-1,1,self.m)
-            xx,yy = np.meshgrid(x,y)
-            self.xyz = np.stack([xx,yy],axis=2).astype('float32')
-            self.input = t.tensor(self.xyz).reshape(-1,2)
-        else:
+        if ynet != None:
             m,n = 0,0
             for key in ysample.keys():
                 if key == 'row':
@@ -336,7 +330,13 @@ class inr(basic_net):
                 elif key == 'patch':
                     x1,y1,x2,y2 = ysample[key]
                     pass
-            self.input = t.cat([feature_x_in,feature_y_in],dim=2).reshape(-1,m+n)/(m+n)
+        x = np.linspace(-1,1,self.n)
+        y = np.linspace(-1,1,self.m)
+        xx,yy = np.meshgrid(x,y)
+        self.xyz = np.stack([xx,yy],axis=2).astype('float32')
+        self.input = t.tensor(self.xyz).reshape(-1,2)
+        self.input_feature = t.cat([feature_x_in,feature_y_in],dim=2).reshape(-1,m+n)/(m+n)
+        self.input = t.cat([self.input,self.input_feature],dim=0)
 
         if cuda_if:
             self.input = self.input.cuda(cuda_num)
