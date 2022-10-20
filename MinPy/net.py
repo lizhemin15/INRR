@@ -335,8 +335,9 @@ class inr(basic_net):
         xx,yy = np.meshgrid(x,y)
         self.xyz = np.stack([xx,yy],axis=2).astype('float32')
         self.input = t.tensor(self.xyz).reshape(-1,2)
-        self.input_feature = t.cat([feature_x_in,feature_y_in],dim=2).reshape(-1,m+n)/(m+n)
-        self.input = t.cat([self.input,self.input_feature],dim=0)
+        if ynet != None:
+            self.input_feature = t.cat([feature_x_in,feature_y_in],dim=2).reshape(-1,m+n)/(m+n)
+            self.input = t.cat([self.input,self.input_feature],dim=0)
 
         if cuda_if:
             self.input = self.input.cuda(cuda_num)
