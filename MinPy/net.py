@@ -321,7 +321,7 @@ class inr(basic_net):
                     if cuda_if:
                         in_put = in_put.cuda(cuda_num)
                     feature_x_in = ynet(in_put).detach().reshape(self.m,n)
-                    feature_x_in = t.repeat_interleave(feature_x_in,repeats=self.n,dim=1)
+                    feature_x_in = t.repeat_interleave(feature_x_in.unsqueeze(1),repeats=self.n,dim=1)
                 elif key == 'col':
                     m = ysample[key]
                     x = np.linspace(-1,1,self.n)
@@ -332,7 +332,7 @@ class inr(basic_net):
                     if cuda_if:
                         in_put = in_put.cuda(cuda_num)
                     feature_y_in = ynet(in_put).detach().reshape(m,self.n).T
-                    feature_y_in = t.repeat_interleave(feature_y_in,repeats=self.m,dim=0)
+                    feature_y_in = t.repeat_interleave(feature_y_in.unsqueeze(0),repeats=self.m,dim=0)
                 elif key == 'patch':
                     x1,y1,x2,y2 = ysample[key]
                     pass
