@@ -131,7 +131,8 @@ class shuffle_task(basic_task):
                  opt_type='Adam',shuffle_mode='I',verbose=False,std_w=1e-3,
                  act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_load_path=None,
                  task_type='completion',noise_dict=None,sample_mode='random',att_para=None,
-                 sigma=1,cv_if=False,lr=1e-3,bias_net_if=False,omega=30.,drop_out=[0,0,0,0,0],Lr=None,Lc=None):
+                 sigma=1,cv_if=False,lr=1e-3,bias_net_if=False,omega=30.,drop_out=[0,0,0,0,0],Lr=None,Lc=None,
+                 ynet=None,ysample={}):
         self.m,self.n = m,n
         self.task_type = task_type
         self.cv_if = cv_if
@@ -152,7 +153,8 @@ class shuffle_task(basic_task):
                         opt_type=opt_type,std_w=std_w,act=act,
                         net_list=net_list,n_layers=n_layers,
                         scale_factor=scale_factor,att_para=att_para,
-                        sigma=sigma,lr=lr,bias_net_if=bias_net_if,omega=omega,drop_out=drop_out)
+                        sigma=sigma,lr=lr,bias_net_if=bias_net_if,
+                        omega=omega,drop_out=drop_out,ynet=ynet,ysample=ysample)
         self.pro_list = []
         
     
@@ -270,7 +272,8 @@ class shuffle_task(basic_task):
     def init_model(self,model_name=None,para=[2,2000,1000,500,200,1],
                     input_mode='masked',std_b=1e-1,opt_type='Adam',
                     std_w=1e-3,act='relu',net_list=['dmf'],n_layers=3,
-                    scale_factor=2,att_para=None,sigma=1,lr=1e-3,bias_net_if=False,omega=30.,drop_out=[0,0,0,0,0]):
+                    scale_factor=2,att_para=None,sigma=1,lr=1e-3,bias_net_if=False,
+                    omega=30.,drop_out=[0,0,0,0,0],ynet=None,ysample={}):
         if model_name == 'dip':
             model = demo.dip(para=para,reg=self.reg_list,img=self.pic,input_mode=input_mode,mask_in=self.mask_in,opt_type=opt_type)
         elif model_name == 'fp':
@@ -290,7 +293,7 @@ class shuffle_task(basic_task):
         elif model_name == 'bacon' or model_name == 'mulbacon':
             model = demo.bacon(params=para,img=self.pic,reg=self.reg_list,type_name=model_name)
         elif model_name == 'siren':
-            model = demo.siren(para=para,reg=self.reg_list,img=self.pic,opt_type=opt_type,omega=omega,drop_out=drop_out)
+            model = demo.siren(para=para,reg=self.reg_list,img=self.pic,opt_type=opt_type,omega=omega,drop_out=drop_out,ynet=ynet,ysample=ysample)
         elif model_name == 'attnet':
             dim_k = att_para['dim_k']
             x_train,x_test = att_para['feature_map'](self.ori_pic,self.mask_in,att_para['map_mode'])
@@ -654,6 +657,12 @@ class train_kernel_task(basic_task):
         self.optimizer.step()
         return loss_all.item()
     
+
+
+
+
+
+
 
 class sinr(basic_task):
     # 这个体系结构下包含两个部分:存储器和推理器

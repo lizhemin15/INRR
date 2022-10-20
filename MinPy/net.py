@@ -288,25 +288,52 @@ class nl_dmf(dmf):
 
 
 class inr(basic_net):
-    def __init__(self,params,img,lr=1e-3,std_b=1e-3,act='relu'):
+    def __init__(self,params,img,lr=1e-3,std_b=1e-3,act='relu',ynet=None,ysample={}):
         self.type = 'inr'
         params = [2,2000,1000,500,200,1]
         self.net = self.init_para(params,std_b=std_b,act=act)
         self.img = img
-        self.img2cor()
+        self.img2cor(ynet,ysample)
         #print(self.input.shape)
         self.data = self.init_data()
         self.opt = self.init_opt(lr)
         
-    def img2cor(self):
+    def img2cor(self,ynet,ysample):
         # 给定m*n灰度图像，返回mn*2
         img_numpy = self.img.cpu().detach().numpy()
         self.m,self.n = img_numpy.shape[0],img_numpy.shape[1]
-        x = np.linspace(-1,1,self.n)
-        y = np.linspace(-1,1,self.m)
-        xx,yy = np.meshgrid(x,y)
-        self.xyz = np.stack([xx,yy],axis=2).astype('float32')
-        self.input = t.tensor(self.xyz).reshape(-1,2)
+        if ynet == None:
+            x = np.linspace(-1,1,self.n)
+            y = np.linspace(-1,1,self.m)
+            xx,yy = np.meshgrid(x,y)
+            self.xyz = np.stack([xx,yy],axis=2).astype('float32')
+            self.input = t.tensor(self.xyz).reshape(-1,2)
+        else:
+            m,n = 0,0
+            for key in ysample.keys():
+                if key == 'row':
+                    n = ysample[key]
+                    x = np.linspace(-1,1,n)
+                    y = np.linspace(-1,1,self.m)
+                    xx,yy = np.meshgrid(x,y)
+                    xyz = np.stack([xx,yy],axis=2).astype('float32')
+                    in_put = t.tensor(xyz).reshape(-1,2)
+                    feature_x_in = ynet(in_put).detach().reshape(self.m,n)
+                    feature_x_in = t.repeat_interleave(feature_x_in,repeats=self.n,dim=1)
+                elif key == 'col':
+                    m = ysample[key]
+                    x = np.linspace(-1,1,self.n)
+                    y = np.linspace(-1,1,m)
+                    xx,yy = np.meshgrid(x,y)
+                    xyz = np.stack([xx,yy],axis=2).astype('float32')
+                    in_put = t.tensor(xyz).reshape(-1,2)
+                    feature_y_in = ynet(in_put).detach().reshape(m,self.n).T
+                    feature_y_in = t.repeat_interleave(feature_y_in,repeats=self.m,dim=0)
+                elif key == 'patch':
+                    x1,y1,x2,y2 = ysample[key]
+                    pass
+            self.input = t.cat([feature_x_in,feature_y_in],dim=2).reshape(-1,m+n)
+
         if cuda_if:
             self.input = self.input.cuda(cuda_num)
         if self.type=='fp' and self.rf_if:
@@ -426,7 +453,7 @@ class inr(basic_net):
         self.data = self.init_data()
 
 class fp(inr):
-    def __init__(self,params,img,lr=1e-3,std_b=1e-3,act='relu',std_w=1e-3,sigma=1,cv_if=False,bias_net_if=False):
+    def __init__(self,params,img,lr=1e-3,std_b=1e-3,act='relu',std_w=1e-3,sigma=1,cv_if=False,bias_net_if=False,ynet=None,ysample={}):
         self.type = 'fp'
         if params[0] == 2:
             params = [2,2000,1000,500,200,1]
@@ -447,7 +474,7 @@ class fp(inr):
             params = [2,hidden_size,hidden_size,hidden_size,hidden_size,1]
         self.net = self.init_para(params,std_b=std_b,act=act,std_w=std_w,bias_net_if=bias_net_if)
         self.img = img
-        self.img2cor()
+        self.img2cor(ynet,ysample)
         #print(self.input.shape)
         self.data = self.init_data()
         self.opt = self.init_opt(lr)
@@ -473,12 +500,12 @@ class fc(inr):
         self.opt = self.init_opt(lr)
 
 class mfn(inr):
-    def __init__(self,params,img,lr=1e-3,type_name='fourier'):
+    def __init__(self,params,img,lr=1e-3,type_name='fourier',ynet=None,ysample={}):
         self.type = type_name
         self.rf_if = False
         self.net = self.init_para(params)
         self.img = img
-        self.img2cor()
+        self.img2cor(ynet,ysample)
         #print(self.input.shape)
         self.data = self.init_data()
         self.opt = self.init_opt(lr)
@@ -586,11 +613,11 @@ class msn(basic_net):
         return self.net()
         
 class bacon(inr):
-    def __init__(self,params,img,lr=1e-3,type_name='bacon'):
+    def __init__(self,params,img,lr=1e-3,type_name='bacon',ynet=None,ysample={}):
         self.type = type_name
         self.img = img
         self.net = self.init_para(params)
-        self.img2cor()
+        self.img2cor(ynet,ysample)
         #print(self.input.shape)
         self.data = self.init_data()
         self.opt = self.init_opt(lr)
@@ -639,7 +666,7 @@ class dis_net(basic_net):
         return model
 
 class siren(inr):
-    def __init__(self,params,img,lr=1e-3,opt_type='Adam',omega=30.,drop_out=[0,0,0,0,0]):
+    def __init__(self,params,img,lr=1e-3,opt_type='Adam',omega=30.,drop_out=[0,0,0,0,0],ynet=None,ysample={}):
         self.type = 'siren'
         hidden_size = img.shape[0]*img.shape[1]//1024
         in_features = params[0]
@@ -648,7 +675,7 @@ class siren(inr):
         hidden_layers = len(params)-2
         self.net = self.init_para(in_features, hidden_features, hidden_layers, out_features,omega=omega,drop_out=drop_out)
         self.img = img
-        self.img2cor()
+        self.img2cor(ynet,ysample)
         self.data = self.init_data()
         self.opt = self.init_opt(lr,opt_type=opt_type)
 
