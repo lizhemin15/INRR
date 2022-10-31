@@ -132,7 +132,7 @@ class shuffle_task(basic_task):
                  act='relu',patch_num=3,net_list=['dmf'],n_layers=3,scale_factor=2,model_load_path=None,
                  task_type='completion',noise_dict=None,sample_mode='random',att_para=None,
                  sigma=1,cv_if=False,lr=1e-3,bias_net_if=False,omega=30.,drop_out=[0,0,0,0,0],Lr=None,Lc=None,
-                 ynet=None,ysample={}):
+                 ynet=None,ysample={},r=256):
         self.m,self.n = m,n
         self.task_type = task_type
         self.cv_if = cv_if
@@ -147,7 +147,7 @@ class shuffle_task(basic_task):
             else:
                 plot.red_im(self.pic.cpu()*self.mask_in.cpu())
         self.init_pro(pro_mode=pro_mode)
-        self.init_reg(m,n,model_path=model_load_path,sample_mode=sample_mode,Lr=Lr,Lc=Lc)
+        self.init_reg(m,n,model_path=model_load_path,sample_mode=sample_mode,Lr=Lr,Lc=Lc,r=r)
         self.init_model(model_name=model_name,para=para,
                         input_mode=input_mode,std_b=std_b,
                         opt_type=opt_type,std_w=std_w,act=act,
@@ -254,13 +254,13 @@ class shuffle_task(basic_task):
             raise('Wrong projection mode')
         self.my_pro = my_pro
     
-    def init_reg(self,m=240,n=240,model_path=None,sample_mode='random',sample_num=1000,Lr=None,Lc=None):
+    def init_reg(self,m=240,n=240,model_path=None,sample_mode='random',sample_num=1000,Lr=None,Lc=None,r=256):
         reg_hc = reg.hc_reg(name='lap')
         reg_row = reg.auto_reg(n,'row')
         reg_col = reg.auto_reg(m,'col')
         reg_l2 = reg.hc_reg(name='l2')
-        reg_crow = reg.cair_reg(mode='row')
-        reg_ccol = reg.cair_reg(mode='col')
+        reg_crow = reg.cair_reg(mode='row',r=r)
+        reg_ccol = reg.cair_reg(mode='col',r=r)
         reg_frow = reg.hc_reg(name='flap_row',L=Lr)
         reg_fcol = reg.hc_reg(name='flap_col',L=Lc)
         if self.reg_mode == 'NN':
